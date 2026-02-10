@@ -1,19 +1,31 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Folder } from 'lucide-react';
+import { authApi } from '../api';
 import './Auth.css';
 
 function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // TODO: Implement actual authentication with backend
-    console.log('Login attempt:', { email, password });
-    // For now, just navigate to dashboard
-    navigate('/dashboard');
+    setLoading(true);
+    setError('');
+
+    try {
+      const user = await authApi.login({ email, password });
+      console.log('Login successful:', user);
+      navigate('/dashboard');
+    } catch (err) {
+      console.error('Login failed:', err);
+      setError(err.message || 'Login failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -28,6 +40,12 @@ function Login() {
         </div>
 
         <form onSubmit={handleSubmit} className="auth-form">
+          {error && (
+            <div className="error-banner">
+              {error}
+            </div>
+          )}
+
           <div className="form-group">
             <label htmlFor="email">Email</label>
             <input
@@ -37,6 +55,7 @@ function Login() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               required
+              disabled={loading}
             />
           </div>
 
@@ -49,11 +68,12 @@ function Login() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               required
+              disabled={loading}
             />
           </div>
 
-          <button type="submit" className="btn btn-primary auth-submit">
-            Sign In
+          <button type="submit" className="btn btn-primary auth-submit" disabled={loading}>
+            {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
 

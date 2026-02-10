@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Folder } from 'lucide-react';
+import { authApi } from '../api';
 import './Auth.css';
 
 function Register() {
@@ -10,6 +11,8 @@ function Register() {
     password: '',
     confirmPassword: ''
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -19,17 +22,37 @@ function Register() {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError('');
     
     if (formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match!');
+      setError('Passwords do not match!');
+      setLoading(false);
       return;
     }
 
-    // TODO: Implement actual registration with backend
-    console.log('Registration attempt:', formData);
-    navigate('/dashboard');
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters long.');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const user = await authApi.register({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+      });
+      console.log('Registration successful:', user);
+      navigate('/dashboard');
+    } catch (err) {
+      console.error('Registration failed:', err);
+      setError(err.message || 'Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -44,6 +67,12 @@ function Register() {
         </div>
 
         <form onSubmit={handleSubmit} className="auth-form">
+          {error && (
+            <div className="error-banner">
+              {error}
+            </div>
+          )}
+
           <div className="form-group">
             <label htmlFor="name">Full Name</label>
             <input
@@ -54,6 +83,7 @@ function Register() {
               onChange={handleChange}
               placeholder="John Doe"
               required
+              disabled={loading}
             />
           </div>
 
@@ -67,6 +97,7 @@ function Register() {
               onChange={handleChange}
               placeholder="you@example.com"
               required
+              disabled={loading}
             />
           </div>
 
@@ -80,6 +111,8 @@ function Register() {
               onChange={handleChange}
               placeholder="••••••••"
               required
+              disabled={loading}
+              minLength={8}
             />
           </div>
 
@@ -93,11 +126,13 @@ function Register() {
               onChange={handleChange}
               placeholder="••••••••"
               required
+              disabled={loading}
+              minLength={8}
             />
           </div>
 
-          <button type="submit" className="btn btn-primary auth-submit">
-            Create Account
+          <button type="submit" className="btn btn-primary auth-submit" disabled={loading}>
+            {loading ? 'Creating Account...' : 'Create Account'}
           </button>
         </form>
 
