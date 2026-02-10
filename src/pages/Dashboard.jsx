@@ -1,40 +1,41 @@
-import { Search, AlertTriangle, Lock, Lightbulb } from 'lucide-react';
+import { useState } from 'react';
+import { Home, ClipboardList, Settings, Search, AlertTriangle, Lock, Zap } from 'lucide-react';
+import './Dashboard.css';
 
-export default function Dashboard() {
-  const suggestedQueries = [
+function Dashboard() {
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const exampleQueries = [
     'Find all contracts with CenCore',
     'Show me Q3 financial reports',
-    'What documents mention security clearances?',
+    'What documents mention security clearances?'
   ];
 
   const recentActivity = [
     {
       id: 1,
-      title: 'Organized 15 files',
-      description: 'Sorted invoices into /Finance/Invoices/2024/',
+      action: 'Organized 15 files',
+      details: 'Sorted invoices into /Finance/Invoices/2024/',
       time: '2 minutes ago',
-      color: 'border-blue-500',
-      bgColor: 'bg-blue-50',
+      color: 'blue'
     },
     {
       id: 2,
-      title: 'Classified 8 contracts',
-      description: 'Moved to /Legal/Contracts/Active/',
+      action: 'Classified 8 contracts',
+      details: 'Moved to /Legal/Contracts/Active/',
       time: '15 minutes ago',
-      color: 'border-green-500',
-      bgColor: 'bg-green-50',
+      color: 'green'
     },
     {
       id: 3,
-      title: 'Renamed 22 files',
-      description: 'Applied naming convention: [Date]_[Type]_[Client]',
+      action: 'Renamed 22 files',
+      details: 'Applied naming convention: [Date]_[Type]_[Client]',
       time: '1 hour ago',
-      color: 'border-purple-500',
-      bgColor: 'bg-purple-50',
-    },
+      color: 'purple'
+    }
   ];
 
-  const smartSuggestions = [
+  const suggestions = [
     {
       id: 1,
       type: 'warning',
@@ -42,115 +43,143 @@ export default function Dashboard() {
       title: 'Found 12 duplicate files',
       description: 'Review and remove duplicates to save 45 MB',
       action: 'Review',
-      bgColor: 'bg-yellow-50',
-      borderColor: 'border-yellow-200',
-      iconColor: 'text-yellow-600',
-      actionColor: 'text-yellow-700 hover:text-yellow-800',
+      color: '#FEF3C7',
+      textColor: '#92400E'
     },
     {
       id: 2,
-      type: 'error',
+      type: 'alert',
       icon: Lock,
       title: 'Sensitive file detected: Payroll_2024.xlsx',
       description: 'Currently accessible by 15 users',
       action: 'Review Access',
-      bgColor: 'bg-red-50',
-      borderColor: 'border-red-200',
-      iconColor: 'text-red-600',
-      actionColor: 'text-red-700 hover:text-red-800',
+      color: '#FEE2E2',
+      textColor: '#991B1B'
     },
     {
       id: 3,
       type: 'info',
-      icon: Lightbulb,
+      icon: Zap,
       title: 'New sorting recipe suggested',
-      description: 'Tax documents could be organized by fiscal quarter',
-      action: 'View Suggestion',
-      bgColor: 'bg-blue-50',
-      borderColor: 'border-blue-200',
-      iconColor: 'text-blue-600',
-      actionColor: 'text-blue-700 hover:text-blue-800',
-    },
+      description: 'AI suggests sorting contracts by client and quarter',
+      action: 'Review Recipe',
+      color: '#DBEAFE',
+      textColor: '#1E40AF'
+    }
   ];
 
   return (
-    <div className="p-8">
-      {/* Page Header */}
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">Dashboard</h1>
-
-      {/* Search Section */}
-      <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
-        <div className="relative">
-          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-          <input
-            type="text"
-            placeholder="Search for information or ask a question..."
-            className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-          />
+    <div className="dashboard-layout">
+      {/* Sidebar */}
+      <aside className="sidebar">
+        <div className="sidebar-header">
+          <div className="sidebar-logo">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3 6h18v12a2 2 0 01-2 2H5a2 2 0 01-2-2V6z" stroke="#3B82F6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M3 6V4a2 2 0 012-2h3l2 3h7a2 2 0 012 2v1" stroke="#3B82F6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <span className="sidebar-brand">Sorterra</span>
+          </div>
         </div>
 
-        {/* Suggested Queries */}
-        <div className="flex flex-wrap gap-2 mt-4">
-          {suggestedQueries.map((query, index) => (
-            <button
-              key={index}
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-full text-sm hover:bg-gray-200 transition-colors"
-            >
-              {query}
-            </button>
-          ))}
-        </div>
-      </div>
+        <nav className="sidebar-nav">
+          <a href="/dashboard" className="nav-item active">
+            <Home size={20} />
+            <span>Dashboard</span>
+          </a>
+          <a href="/recipes" className="nav-item">
+            <ClipboardList size={20} />
+            <span>Recipes</span>
+          </a>
+          <a href="/settings" className="nav-item">
+            <Settings size={20} />
+            <span>Settings</span>
+          </a>
+        </nav>
 
-      {/* Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Recent Activity */}
-        <div>
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-gray-900">Recent Activity</h2>
-              <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                Live
-              </span>
+        <div className="sidebar-footer">
+          <div className="organization-badge">
+            <div className="org-avatar">CC</div>
+            <div className="org-info">
+              <div className="org-name">CenCore Legal</div>
+              <div className="org-status">Connected</div>
             </div>
+          </div>
+        </div>
+      </aside>
 
-            <div className="space-y-4">
-              {recentActivity.map((activity) => (
-                <div
-                  key={activity.id}
-                  className={`${activity.bgColor} border-l-4 ${activity.color} p-4 rounded-r-lg`}
-                >
-                  <h3 className="font-semibold text-gray-900 mb-1">{activity.title}</h3>
-                  <p className="text-sm text-gray-600 mb-2">{activity.description}</p>
-                  <p className="text-xs text-gray-500">{activity.time}</p>
+      {/* Main Content */}
+      <main className="main-content">
+        <header className="dashboard-header">
+          <h1>Dashboard</h1>
+        </header>
+
+        {/* Search Section */}
+        <div className="search-section card">
+          <div className="search-bar">
+            <Search size={20} color="#9CA3AF" />
+            <input
+              type="text"
+              placeholder="Search for information or ask a question..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <div className="example-queries">
+            {exampleQueries.map((query, idx) => (
+              <button key={idx} className="example-query" onClick={() => setSearchQuery(query)}>
+                {query}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Activity and Suggestions Grid */}
+        <div className="dashboard-grid">
+          {/* Recent Activity */}
+          <div className="card activity-card">
+            <div className="card-header">
+              <h2>Recent Activity</h2>
+              <span className="live-badge">Live</span>
+            </div>
+            <div className="activity-list">
+              {recentActivity.map((item) => (
+                <div key={item.id} className={`activity-item activity-${item.color}`}>
+                  <div className="activity-content">
+                    <h3>{item.action}</h3>
+                    <p>{item.details}</p>
+                    <span className="activity-time">{item.time}</span>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
-        </div>
 
-        {/* Smart Suggestions */}
-        <div>
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">Smart Suggestions</h2>
-
-            <div className="space-y-4">
-              {smartSuggestions.map((suggestion) => {
+          {/* Smart Suggestions */}
+          <div className="card suggestions-card">
+            <div className="card-header">
+              <h2>Smart Suggestions</h2>
+            </div>
+            <div className="suggestions-list">
+              {suggestions.map((suggestion) => {
                 const Icon = suggestion.icon;
                 return (
                   <div
                     key={suggestion.id}
-                    className={`${suggestion.bgColor} border ${suggestion.borderColor} p-4 rounded-lg`}
+                    className="suggestion-item"
+                    style={{ backgroundColor: suggestion.color }}
                   >
-                    <div className="flex items-start">
-                      <Icon className={`w-5 h-5 ${suggestion.iconColor} mr-3 mt-0.5 flex-shrink-0`} />
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900 mb-1">{suggestion.title}</h3>
-                        <p className="text-sm text-gray-600 mb-3">{suggestion.description}</p>
-                        <button className={`text-sm font-medium ${suggestion.actionColor}`}>
-                          {suggestion.action} →
-                        </button>
-                      </div>
+                    <div className="suggestion-icon" style={{ color: suggestion.textColor }}>
+                      <Icon size={20} />
+                    </div>
+                    <div className="suggestion-content">
+                      <h3 style={{ color: suggestion.textColor }}>{suggestion.title}</h3>
+                      <p style={{ color: suggestion.textColor, opacity: 0.8 }}>
+                        {suggestion.description}
+                      </p>
+                      <button className="suggestion-action" style={{ color: suggestion.textColor }}>
+                        {suggestion.action}
+                      </button>
                     </div>
                   </div>
                 );
@@ -158,7 +187,9 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
+
+export default Dashboard;
