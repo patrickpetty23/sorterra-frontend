@@ -1,140 +1,137 @@
 # Sorterra Frontend
 
-React frontend for Sorterra - an AI-powered file management system for SharePoint.
+React-based frontend for Sorterra, an AI-powered file management system for SharePoint.
 
-## Features
+## 🎨 Branding
 
-- 🔐 **Authentication** - Login and registration pages
-- 📊 **Dashboard** - Real-time activity feed and smart suggestions
-- 🎨 **Modern UI** - Built with Tailwind CSS
-- 🚀 **Fast** - Powered by Vite
+**Color Palette:**
+- Primary Blue: `#1E40AF`
+- Accent Blue: `#3B82F6`
+- Dark Sidebar: `#1E293B`
+- Slate Background: `#F3F4F6`
+- Text Gray: `#374151`
+- Success Green: `#10B981`
+- Warning Amber: `#F59E0B`
+- Error Red: `#EF4444`
 
-## Tech Stack
+**Typography:**
+- Primary: Inter (via Google Fonts)
+- Weights: 400 (Regular), 500 (Medium), 600 (Semi-Bold), 700 (Bold)
 
-- **React** - UI framework
-- **Vite** - Build tool
-- **React Router** - Client-side routing
-- **Tailwind CSS** - Styling
-- **Lucide React** - Icons
+## 🚀 Quick Start
 
-## Project Structure
+### Prerequisites
+- Node.js 18+
+- npm or yarn
+
+### Installation
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+```
+
+## 📁 Project Structure
 
 ```
 sorterra-frontend/
 ├── src/
-│   ├── components/
-│   │   └── DashboardLayout.jsx    # Main layout with sidebar
 │   ├── pages/
-│   │   ├── Login.jsx              # Login page
-│   │   ├── Register.jsx           # Registration page
-│   │   └── Dashboard.jsx          # Main dashboard
-│   ├── App.jsx                    # Router configuration
-│   ├── main.jsx                   # Entry point
-│   └── index.css                  # Tailwind imports
-├── tailwind.config.js
-├── vite.config.js
-└── package.json
+│   │   ├── Login.jsx          # Login page
+│   │   ├── Register.jsx       # Registration page
+│   │   ├── Dashboard.jsx      # Main dashboard
+│   │   ├── Auth.css           # Auth pages styles
+│   │   └── Dashboard.css      # Dashboard styles
+│   ├── App.jsx                # Main app component with routing
+│   ├── index.css              # Global styles and CSS variables
+│   └── main.jsx               # Entry point
+├── index.html                 # HTML template
+└── README.md
 ```
 
-## Getting Started
+## 🎯 Current Features
 
-### Prerequisites
+### Authentication
+- **Login Page** - Email/password authentication
+- **Register Page** - New user registration with password confirmation
 
-- Node.js 18+ and npm
+### Dashboard
+- **Search Bar** - Natural language search with example queries
+- **Recent Activity** - Live feed of file organization events
+- **Smart Suggestions** - AI-generated recommendations for:
+  - Duplicate file detection
+  - Sensitive file alerts
+  - Sorting recipe suggestions
+- **Sidebar Navigation** - Dashboard, Recipes, Settings
+- **Organization Badge** - Current connected SharePoint organization
 
-### Installation
+## 🔗 API Integration
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/patrickpetty23/sorterra-frontend.git
-   cd sorterra-frontend
-   ```
+This frontend is designed to work with the [Sorterra API](https://github.com/szachbagley/sorterra-api).
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+**API Endpoints (to be integrated):**
+- `POST /api/auth/login` - User authentication
+- `POST /api/auth/register` - User registration
+- `GET /api/activity` - Recent activity feed
+- `GET /api/suggestions` - Smart suggestions
+- `GET /api/search` - Document search
 
-3. **Start development server**
-   ```bash
-   npm run dev
-   ```
+## 🛠️ Tech Stack
 
-4. **Open in browser**
-   ```
-   http://localhost:5173
-   ```
+- **React 18** - UI framework
+- **Vite** - Build tool and dev server
+- **React Router** - Client-side routing
+- **Lucide React** - Icon library
+- **CSS Modules** - Scoped styling
 
-## Available Scripts
+## 📦 Dependencies
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start development server |
-| `npm run build` | Build for production |
-| `npm run preview` | Preview production build |
-| `npm run lint` | Run ESLint |
-
-## Design System
-
-### Colors
-
-| Color | Hex | Usage |
-|-------|-----|-------|
-| Primary Blue | `#2196F3` | Buttons, links, accents |
-| Sidebar Dark | `#2C3E50` | Sidebar background |
-| Background | `#F9FAFB` | Page background |
-
-### Components
-
-- **Login/Register** - Full-page auth forms with centered cards
-- **Dashboard Layout** - Sidebar navigation with main content area
-- **Dashboard** - Search bar, recent activity feed, smart suggestions
-- **Activity Cards** - Colored left border with timestamp
-- **Suggestion Cards** - Icon-based alerts with action buttons
-
-## API Integration
-
-The frontend is designed to connect to the Sorterra API backend:
-
-**Backend Repository:** [sorterra-api](https://github.com/szachbagley/sorterra-api)
-
-**API Base URL (Development):** `http://localhost:5001`
-
-### TODO: Connect to API
-
-- [ ] Add API client (axios/fetch)
-- [ ] Implement authentication flow with Cognito
-- [ ] Connect dashboard to `/api/activitylogs` endpoint
-- [ ] Connect suggestions to processing pipeline
-- [ ] Add error handling and loading states
-
-## Deployment
-
-### Build for Production
-
-```bash
-npm run build
+```json
+{
+  "react": "^18.3.1",
+  "react-dom": "^18.3.1",
+  "react-router-dom": "^7.1.1",
+  "lucide-react": "^0.469.0"
+}
 ```
 
-The `dist/` folder will contain the optimized production build.
+## 🎨 Design System
 
-### Deploy to AWS Amplify / Vercel / Netlify
+The UI follows the Sorterra brand guidelines:
+- **Professional** - Clean layout, balanced contrast
+- **Exciting** - Bright blue accents, subtle animations
+- **Human** - Rounded corners, approachable neutrals
 
-This is a standard Vite React app and can be deployed to any static hosting service.
+## 🚧 To-Do
 
-**Build Command:** `npm run build`  
-**Output Directory:** `dist`
+- [ ] Connect authentication to Cognito
+- [ ] Integrate with backend API endpoints
+- [ ] Add Recipes page (sorting rule management)
+- [ ] Add Settings page (user/org configuration)
+- [ ] Implement real-time activity updates (WebSocket/polling)
+- [ ] Add loading states and error handling
+- [ ] Add responsive mobile design
+- [ ] Add user profile dropdown
+- [ ] Add logout functionality
+- [ ] Add SharePoint connection flow
 
-## Team
+## 👥 Team
 
-| Member | Role |
-|--------|------|
-| Patrick Petty | Frontend Developer |
-| Zach Bagley | Backend API & Authentication |
-| McKay Boody | Cloud Infrastructure & DevOps |
-| Nate Shaw | AI/ML (Classification) |
-| Caleb Gooch | AI/ML (Search & RAG) |
+- **Patrick Petty** - Frontend Developer
+- **Zach Bagley** - Backend API & Authentication
+- **McKay Boody** - Cloud Infrastructure & DevOps
+- **Nate Shaw** - AI/ML (Classification)
+- **Caleb Gooch** - AI/ML (Search & RAG)
 
-## License
+## 📄 License
 
-Capstone project for MISM program.
+MISM Capstone Project
