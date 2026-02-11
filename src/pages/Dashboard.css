@@ -104,12 +104,37 @@
 
 .dashboard-header {
   margin-bottom: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .dashboard-header h1 {
   font-size: 2rem;
   font-weight: 700;
   color: var(--text-gray);
+}
+
+.logout-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  background: transparent;
+  border: 1px solid #E5E7EB;
+  border-radius: 0.5rem;
+  color: var(--text-gray);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.logout-button:hover {
+  background: #F9FAFB;
+  border-color: #DC2626;
+  color: #DC2626;
 }
 
 /* Search Section */

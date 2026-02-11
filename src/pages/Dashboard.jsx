@@ -1,9 +1,17 @@
 import { useState } from 'react';
-import { Home, ClipboardList, Settings, Search, AlertTriangle, Lock, Zap } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Home, ClipboardList, Settings, Search, AlertTriangle, Lock, Zap, LogOut } from 'lucide-react';
+import { authApi } from '../api';
 import './Dashboard.css';
 
 function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('');
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    authApi.logout();
+    navigate('/login');
+  };
 
   const exampleQueries = [
     'Find all contracts with CenCore',
@@ -112,6 +120,10 @@ function Dashboard() {
       <main className="main-content">
         <header className="dashboard-header">
           <h1>Dashboard</h1>
+          <button onClick={handleLogout} className="logout-button">
+            <LogOut size={20} />
+            <span>Logout</span>
+          </button>
         </header>
 
         {/* Search Section */}
