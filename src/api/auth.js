@@ -1,88 +1,110 @@
+import { userPool, getCognitoUser, getAuthDetails, CognitoUserAttribute } from './cognito';
 import apiClient from './client';
 
-/**
- * Authentication API service
- */
+const decodeJwt = (token) => {
+  const payload = token.split('.')[1];
+  return JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+};
+
+const claimsToUser = (claims) => ({
+  sub: claims.sub,
+  email: claims.email,
+  name: claims.name,
+});
+
 export const authApi = {
-  /**
-   * Register a new user
-   */
-  async register({ name, email, password }) {
-    // Note: Backend uses cognitoSub, but for now we'll use email as placeholder
-    // TODO: Implement actual Cognito registration flow
-    const userData = {
-      cognitoSub: `temp_${Date.now()}`, // Placeholder until Cognito is integrated
-      email,
-      displayName: name,
-    };
-
-    const user = await apiClient.post('/api/users', userData, {
-      includeAuth: false, // No auth needed for registration
-    });
-
-    // Store user data
-    apiClient.setUser(user);
-
-    // TODO: Get actual JWT token from Cognito
-    // For now, generate a placeholder token
-    const placeholderToken = btoa(JSON.stringify({ userId: user.id, email: user.email }));
-    apiClient.setToken(placeholderToken);
-
-    return user;
-  },
-
-  /**
-   * Login an existing user
-   */
   async login({ email, password }) {
-    // TODO: Implement actual Cognito authentication
-    // For now, we'll just look up the user by email
-    
-    try {
-      // Get all users and find by email (temporary workaround)
-      const users = await apiClient.get('/api/users', { includeAuth: false });
-      const user = users.find(u => u.email === email);
+    return new Promise((resolve, reject) => {
+      const cognitoUser = getCognitoUser(email);
+      const authDetails = getAuthDetails(email, password);
 
-      if (!user) {
-        throw new Error('User not found. Please register first.');
-      }
-
-      // Store user data
-      apiClient.setUser(user);
-
-      // Generate placeholder token
-      const placeholderToken = btoa(JSON.stringify({ userId: user.id, email: user.email }));
-      apiClient.setToken(placeholderToken);
-
-      // Update last login time
-      await apiClient.put(`/api/users/${user.id}`, {
-        lastLoginAt: new Date().toISOString(),
+      cognitoUser.authenticateUser(authDetails, {
+        onSuccess: (result) => {
+          const idToken = result.getIdToken().getJwtToken();
+          const user = claimsToUser(decodeJwt(idToken));
+          apiClient.setToken(idToken);
+          apiClient.setUser(user);
+          resolve(user);
+        },
+        onFailure: (err) => {
+          reject(new Error(err.message || 'Login failed'));
+        },
+        newPasswordRequired: () => {
+          reject(new Error('Password change required. Please contact support.'));
+        },
       });
-
-      return user;
-    } catch (error) {
-      throw new Error('Login failed: ' + error.message);
-    }
+    });
   },
 
-  /**
-   * Logout current user
-   */
+  async register({ name, email, password }) {
+    return new Promise((resolve, reject) => {
+      const attributes = [
+        new CognitoUserAttribute({ Name: 'email', Value: email }),
+        new CognitoUserAttribute({ Name: 'name', Value: name }),
+      ];
+
+      userPool.signUp(email, password, attributes, null, (err, result) => {
+        if (err) {
+          reject(new Error(err.message || 'Registration failed'));
+          return;
+        }
+        resolve({ cognitoUser: result.user, userSub: result.userSub });
+      });
+    });
+  },
+
+  async confirmRegistration({ email, code }) {
+    return new Promise((resolve, reject) => {
+      getCognitoUser(email).confirmRegistration(code, true, (err) => {
+        if (err) {
+          reject(new Error(err.message || 'Confirmation failed'));
+          return;
+        }
+        resolve();
+      });
+    });
+  },
+
+  async resendConfirmationCode({ email }) {
+    return new Promise((resolve, reject) => {
+      getCognitoUser(email).resendConfirmationCode((err) => {
+        if (err) {
+          reject(new Error(err.message || 'Failed to resend code'));
+          return;
+        }
+        resolve();
+      });
+    });
+  },
+
   logout() {
+    const cognitoUser = userPool.getCurrentUser();
+    if (cognitoUser) cognitoUser.signOut();
     apiClient.clearToken();
     apiClient.clearUser();
   },
 
-  /**
-   * Get current authenticated user
-   */
+  async restoreSession() {
+    return new Promise((resolve) => {
+      const cognitoUser = userPool.getCurrentUser();
+      if (!cognitoUser) { resolve(null); return; }
+
+      cognitoUser.getSession((err, session) => {
+        if (err || !session?.isValid()) { resolve(null); return; }
+
+        const idToken = session.getIdToken().getJwtToken();
+        const user = claimsToUser(decodeJwt(idToken));
+        apiClient.setToken(idToken);
+        apiClient.setUser(user);
+        resolve(user);
+      });
+    });
+  },
+
   getCurrentUser() {
     return apiClient.getUser();
   },
 
-  /**
-   * Check if user is authenticated
-   */
   isAuthenticated() {
     return !!apiClient.getToken();
   },

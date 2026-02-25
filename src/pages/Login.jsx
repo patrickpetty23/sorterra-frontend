@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Folder } from 'lucide-react';
-import { authApi } from '../api';
+import { useAuth } from '../contexts/AuthContext';
 import './Auth.css';
 
 function Login() {
@@ -9,6 +9,7 @@ function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -17,11 +18,9 @@ function Login() {
     setError('');
 
     try {
-      const user = await authApi.login({ email, password });
-      console.log('Login successful:', user);
+      await login({ email, password });
       navigate('/dashboard');
     } catch (err) {
-      console.error('Login failed:', err);
       setError(err.message || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
@@ -40,11 +39,7 @@ function Login() {
         </div>
 
         <form onSubmit={handleSubmit} className="auth-form">
-          {error && (
-            <div className="error-banner">
-              {error}
-            </div>
-          )}
+          {error && <div className="error-banner">{error}</div>}
 
           <div className="form-group">
             <label htmlFor="email">Email</label>

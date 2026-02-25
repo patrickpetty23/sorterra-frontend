@@ -1,15 +1,16 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Home, ClipboardList, Settings, Search, AlertTriangle, Lock, Zap, LogOut } from 'lucide-react';
-import { authApi } from '../api';
+import { useAuth } from '../contexts/AuthContext';
 import './Dashboard.css';
 
 function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('');
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    authApi.logout();
+    logout();
     navigate('/login');
   };
 
