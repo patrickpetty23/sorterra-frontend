@@ -14,6 +14,42 @@ const ACTIVITY_COLORS = {
   recipe_executed: 'blue',
 };
 
+const EXAMPLE_QUERIES = [
+  'Find all contracts with CenCore',
+  'Show me Q3 financial reports',
+  'What documents mention security clearances?',
+];
+
+const SUGGESTIONS = [
+  {
+    id: 1,
+    icon: AlertTriangle,
+    title: 'Found 12 duplicate files',
+    description: 'Review and remove duplicates to save 45 MB',
+    action: 'Review',
+    color: '#FEF3C7',
+    textColor: '#92400E',
+  },
+  {
+    id: 2,
+    icon: Lock,
+    title: 'Sensitive file detected: Payroll_2024.xlsx',
+    description: 'Currently accessible by 15 users',
+    action: 'Review Access',
+    color: '#FEE2E2',
+    textColor: '#991B1B',
+  },
+  {
+    id: 3,
+    icon: Zap,
+    title: 'New sorting recipe suggested',
+    description: 'AI suggests sorting contracts by client and quarter',
+    action: 'Review Recipe',
+    color: '#DBEAFE',
+    textColor: '#1E40AF',
+  },
+];
+
 function formatTimeAgo(dateString) {
   const now = new Date();
   const date = new Date(dateString);
@@ -152,45 +188,6 @@ function Dashboard() {
     if (e.key === 'Enter') handleSearch();
   };
 
-  const exampleQueries = [
-    'Find all contracts with CenCore',
-    'Show me Q3 financial reports',
-    'What documents mention security clearances?'
-  ];
-
-  const suggestions = [
-    {
-      id: 1,
-      type: 'warning',
-      icon: AlertTriangle,
-      title: 'Found 12 duplicate files',
-      description: 'Review and remove duplicates to save 45 MB',
-      action: 'Review',
-      color: '#FEF3C7',
-      textColor: '#92400E'
-    },
-    {
-      id: 2,
-      type: 'alert',
-      icon: Lock,
-      title: 'Sensitive file detected: Payroll_2024.xlsx',
-      description: 'Currently accessible by 15 users',
-      action: 'Review Access',
-      color: '#FEE2E2',
-      textColor: '#991B1B'
-    },
-    {
-      id: 3,
-      type: 'info',
-      icon: Zap,
-      title: 'New sorting recipe suggested',
-      description: 'AI suggests sorting contracts by client and quarter',
-      action: 'Review Recipe',
-      color: '#DBEAFE',
-      textColor: '#1E40AF'
-    }
-  ];
-
   return (
     <>
       {/* Search Section */}
@@ -219,9 +216,9 @@ function Dashboard() {
           )}
         </div>
         <div className="example-queries">
-          {exampleQueries.map((query, idx) => (
+          {EXAMPLE_QUERIES.map((query) => (
             <button
-              key={idx}
+              key={query}
               className="example-query"
               onClick={() => handleSearch(query)}
               disabled={searchSubmitting}
@@ -356,7 +353,7 @@ function Dashboard() {
             <h2>Smart Suggestions</h2>
           </div>
           <div className="suggestions-list">
-            {suggestions.map((suggestion) => {
+            {SUGGESTIONS.map((suggestion) => {
               const Icon = suggestion.icon;
               return (
                 <div

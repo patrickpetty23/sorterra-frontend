@@ -5,6 +5,13 @@ import { useAuth } from '../contexts/AuthContext';
 import { useOrg } from '../contexts/OrgContext';
 import '../pages/Dashboard.css';
 
+const NAV_ITEMS = [
+  { name: 'Dashboard', href: '/dashboard', icon: Home },
+  { name: 'Recipes', href: '/recipes', icon: ClipboardList },
+  { name: 'Files', href: '/files', icon: FileText },
+  { name: 'Settings', href: '/settings', icon: Settings },
+];
+
 function getInitials(name) {
   if (!name) return '??';
   return name
@@ -26,13 +33,6 @@ export default function DashboardLayout() {
   useEffect(() => {
     setSidebarOpen(false);
   }, [location.pathname]);
-
-  const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: Home },
-    { name: 'Recipes', href: '/recipes', icon: ClipboardList },
-    { name: 'Files', href: '/files', icon: FileText },
-    { name: 'Settings', href: '/settings', icon: Settings },
-  ];
 
   const isActive = (href) => location.pathname === href;
 
@@ -66,7 +66,7 @@ export default function DashboardLayout() {
         </div>
 
         <nav className="sidebar-nav" aria-label="Primary">
-          {navigation.map((item) => {
+          {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             return (
               <Link
@@ -121,7 +121,7 @@ export default function DashboardLayout() {
             >
               <Menu size={24} aria-hidden="true" />
             </button>
-            <h1>{navigation.find((n) => isActive(n.href))?.name || 'Sorterra'}</h1>
+            <h1>{NAV_ITEMS.find((n) => isActive(n.href))?.name || 'Sorterra'}</h1>
           </div>
           <div className="header-actions">
             {user && <span className="user-greeting">{user.name || user.email}</span>}
