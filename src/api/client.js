@@ -71,6 +71,31 @@ class ApiClient {
   }
 
   /**
+   * Listeners for auth events (401)
+   */
+  onUnauthorized = null;
+
+  /**
+   * User-friendly message for HTTP status codes
+   */
+  getErrorMessage(status, serverMessage) {
+    if (serverMessage) return serverMessage;
+    switch (status) {
+      case 400: return 'Invalid request. Please check your input and try again.';
+      case 401: return 'Your session has expired. Please log in again.';
+      case 403: return 'You don\'t have permission to perform this action.';
+      case 404: return 'The requested resource was not found.';
+      case 409: return 'This conflicts with an existing resource.';
+      case 422: return 'The submitted data is invalid.';
+      case 429: return 'Too many requests. Please wait a moment and try again.';
+      case 500: return 'An internal server error occurred. Please try again later.';
+      case 502: return 'The server is temporarily unavailable. Please try again later.';
+      case 503: return 'The service is temporarily unavailable. Please try again later.';
+      default: return `An unexpected error occurred (${status}).`;
+    }
+  }
+
+  /**
    * Generic request method
    */
   async request(endpoint, options = {}) {
@@ -86,11 +111,17 @@ class ApiClient {
       // Handle non-OK responses
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
-        throw new ApiError(
-          errorData?.message || `HTTP ${response.status}: ${response.statusText}`,
+        const message = this.getErrorMessage(
           response.status,
-          errorData
+          errorData?.message || errorData?.title
         );
+
+        // Handle 401 - trigger logout
+        if (response.status === 401 && this.onUnauthorized) {
+          this.onUnauthorized();
+        }
+
+        throw new ApiError(message, response.status, errorData);
       }
 
       // Handle 204 No Content
@@ -103,7 +134,15 @@ class ApiClient {
       if (error instanceof ApiError) {
         throw error;
       }
-      throw new ApiError('Network error or server unreachable', 0, error);
+      // Network errors
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        throw new ApiError(
+          'Unable to connect to the server. Please check your internet connection.',
+          0,
+          error
+        );
+      }
+      throw new ApiError('An unexpected network error occurred. Please try again.', 0, error);
     }
   }
 

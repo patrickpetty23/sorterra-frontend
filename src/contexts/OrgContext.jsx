@@ -1,0 +1,70 @@
+import { createContext, useContext, useState, useEffect } from 'react';
+import { useAuth } from './AuthContext';
+import { usersApi } from '../api/users';
+import { userOrganizationsApi } from '../api/userOrganizations';
+import { organizationsApi } from '../api';
+
+const OrgContext = createContext(null);
+
+export function OrgProvider({ children }) {
+  const { user, isAuthenticated } = useAuth();
+  const [organization, setOrganization] = useState(null);
+  const [orgRole, setOrgRole] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user?.sub) {
+      setOrganization(null);
+      setOrgRole(null);
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function fetchOrg() {
+      try {
+        // 1. Find DB user by Cognito sub
+        const dbUser = await usersApi.getByCognitoSub(user.sub);
+        if (cancelled || !dbUser) {
+          setLoading(false);
+          return;
+        }
+
+        // 2. Get user's organization memberships
+        const memberships = await userOrganizationsApi.getByUserId(dbUser.id);
+        if (cancelled || memberships.length === 0) {
+          setLoading(false);
+          return;
+        }
+
+        // 3. Use the first org membership (primary org)
+        const membership = memberships[0];
+        const org = await organizationsApi.getById(membership.organizationId);
+        if (cancelled) return;
+
+        setOrganization(org);
+        setOrgRole(membership.role);
+      } catch {
+        // Org fetch is non-critical; sidebar will show fallback
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    fetchOrg();
+    return () => { cancelled = true; };
+  }, [isAuthenticated, user?.sub]);
+
+  return (
+    <OrgContext.Provider value={{ organization, orgRole, loading }}>
+      {children}
+    </OrgContext.Provider>
+  );
+}
+
+export const useOrg = () => {
+  const ctx = useContext(OrgContext);
+  if (!ctx) throw new Error('useOrg must be used within OrgProvider');
+  return ctx;
+};
