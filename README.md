@@ -1,245 +1,305 @@
 # Sorterra Frontend
 
-React-based frontend for Sorterra, an AI-powered file management system for SharePoint.
+React-based frontend for **Sorterra**, an AI-powered file sorting and management system for SharePoint. Sorterra automatically classifies, organizes, and routes files using intelligent sorting recipes, semantic search, and activity tracking.
 
-## 🎨 Branding
+## Table of Contents
 
-**Color Palette:**
-- Primary Blue: `#1E40AF`
-- Accent Blue: `#3B82F6`
-- Dark Sidebar: `#1E293B`
-- Slate Background: `#F3F4F6`
-- Text Gray: `#374151`
-- Success Green: `#10B981`
-- Warning Amber: `#F59E0B`
-- Error Red: `#EF4444`
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Getting Started](#getting-started)
+- [Project Structure](#project-structure)
+- [Environment Variables](#environment-variables)
+- [Authentication](#authentication)
+- [API Integration](#api-integration)
+- [Pages & Routes](#pages--routes)
+- [Component Library](#component-library)
+- [Styling & Design System](#styling--design-system)
+- [Docker Deployment](#docker-deployment)
+- [Team](#team)
+- [License](#license)
 
-**Typography:**
-- Primary: Inter (via Google Fonts)
-- Weights: 400 (Regular), 500 (Medium), 600 (Semi-Bold), 700 (Bold)
+## Features
 
-## 🚀 Quick Start
+- **AWS Cognito Authentication** — Email/password signup with email verification, JWT-based sessions, and automatic token management
+- **Dashboard** — At-a-glance stats (files processed, active recipes, connected sites), recent activity feed, search history, and AI-powered smart suggestions
+- **Sorting Recipes** — Full CRUD for file sorting rules with file type patterns, destination path templates (with variable substitution like `[Year]`, `[Month]`), priority ordering, and active/inactive toggling
+- **Processed Files** — Browse all files handled by the system with status tracking, confidence scores, classified types, extracted metadata, and expandable detail rows
+- **Settings** — User profile management, organization configuration with team member roles (Owner/Admin/Member), and SharePoint connection management
+- **Semantic Search** — Natural language search bar with query history and example prompts
+- **SharePoint Integration** — Connect and manage SharePoint sites with status monitoring and sync tracking
+
+## Tech Stack
+
+| Category        | Technology                                    |
+| --------------- | --------------------------------------------- |
+| Framework       | React 19, React Router 7                      |
+| Build Tool      | Vite 7                                        |
+| Styling         | Tailwind CSS 4, PostCSS, CSS Modules          |
+| Authentication  | AWS Cognito (`amazon-cognito-identity-js`)    |
+| Icons           | Lucide React                                  |
+| State Mgmt      | React Context API (Auth, Organization, Toast) |
+| Linting         | ESLint 9 with React Hooks plugin              |
+| Containerization| Docker (Node 22 Alpine + Nginx 1.27 Alpine)   |
+
+## Getting Started
 
 ### Prerequisites
-- Node.js 18+
-- npm or yarn
+
+- Node.js 18+ (22 recommended)
+- npm
+- Access to an AWS Cognito User Pool (for authentication)
+- The [Sorterra API](https://github.com/szachbagley/sorterra-api) backend running locally or deployed
 
 ### Installation
 
 ```bash
+# Clone the repository
+git clone https://github.com/szachbagley/sorterra-frontend.git
+cd sorterra-frontend
+
 # Install dependencies
 npm install
 
-# Start development server
+# Copy the environment config and fill in your values
+cp .env.example .env
+```
+
+### Development
+
+```bash
+# Start the dev server (http://localhost:3000)
 npm run dev
+
+# Lint the codebase
+npm run lint
 
 # Build for production
 npm run build
 
-# Preview production build
+# Preview the production build locally
 npm run preview
 ```
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 sorterra-frontend/
+├── public/                        # Static assets
+├── docker/
+│   └── nginx.conf                 # Nginx config for SPA routing & caching
 ├── src/
-│   ├── pages/
-│   │   ├── Login.jsx          # Login page
-│   │   ├── Register.jsx       # Registration page
-│   │   ├── Dashboard.jsx      # Main dashboard
-│   │   ├── Auth.css           # Auth pages styles
-│   │   └── Dashboard.css      # Dashboard styles
-│   ├── App.jsx                # Main app component with routing
-│   ├── index.css              # Global styles and CSS variables
-│   └── main.jsx               # Entry point
-├── index.html                 # HTML template
-└── README.md
+│   ├── api/                       # API service layer
+│   │   ├── client.js              # Base HTTP client (fetch wrapper, auth headers, error handling)
+│   │   ├── auth.js                # Cognito authentication operations
+│   │   ├── cognito.js             # Cognito User Pool SDK setup
+│   │   ├── activity.js            # Activity log endpoints
+│   │   ├── organizations.js       # Organization CRUD
+│   │   ├── recipes.js             # Sorting recipe CRUD (with filters/ordering)
+│   │   ├── users.js               # User management
+│   │   ├── search.js              # Search queries & history
+│   │   ├── processedFiles.js      # Processed file tracking
+│   │   ├── userOrganizations.js   # User-organization membership
+│   │   ├── sharePointConnections.js # SharePoint site connections
+│   │   └── index.js               # Barrel exports
+│   ├── components/                # Reusable UI components
+│   │   ├── DashboardLayout.jsx    # Main app shell (sidebar, header, content area)
+│   │   ├── ProtectedRoute.jsx     # Auth guard — redirects unauthenticated users
+│   │   ├── RecipeModal.jsx        # Create/edit sorting recipe modal
+│   │   ├── ConnectionModal.jsx    # Add SharePoint connection modal
+│   │   ├── Toast.jsx              # Notification toasts (success/error/warning/info)
+│   │   ├── ConfirmDialog.jsx      # Confirmation dialog for destructive actions
+│   │   ├── EmptyState.jsx         # Placeholder for empty data states
+│   │   ├── ErrorBoundary.jsx      # React error boundary with recovery
+│   │   └── LoadingSpinner.jsx     # Full-page and inline loading indicators
+│   ├── contexts/                  # React Context providers
+│   │   ├── AuthContext.jsx        # Auth state, login/logout, session restoration
+│   │   ├── OrgContext.jsx         # Current organization state
+│   │   └── ToastContext.jsx       # Toast notification manager
+│   ├── hooks/
+│   │   └── useFocusTrap.js        # Accessible focus trapping for modals
+│   ├── pages/                     # Route-level page components
+│   │   ├── Login.jsx              # Email/password login via Cognito
+│   │   ├── Register.jsx           # Two-step registration (signup + email verification)
+│   │   ├── Dashboard.jsx          # Home — stats, activity feed, search, suggestions
+│   │   ├── Recipes.jsx            # Sorting recipe management table
+│   │   ├── Files.jsx              # Processed files list with expandable details
+│   │   └── Settings.jsx           # Profile, organization, and connections config
+│   ├── App.jsx                    # Route definitions with lazy loading
+│   ├── main.jsx                   # React entry point
+│   └── index.css                  # Global styles, CSS variables, Tailwind imports
+├── Dockerfile                     # Multi-stage build (Node build → Nginx serve)
+├── vite.config.js                 # Vite config (port 3000, code splitting)
+├── tailwind.config.js             # Custom color palette and theme extensions
+├── postcss.config.js              # Tailwind + Autoprefixer
+├── eslint.config.js               # ESLint with React hooks rules
+├── .env.example                   # Environment variable template
+└── index.html                     # HTML entry point (includes Cognito polyfill)
 ```
 
-## 🎯 Current Features
+## Environment Variables
 
-### Authentication
-- **Login Page** - Email/password authentication
-- **Register Page** - New user registration with password confirmation
+Create a `.env` file in the project root (see `.env.example`):
 
-### Dashboard
-- **Search Bar** - Natural language search with example queries
-- **Recent Activity** - Live feed of file organization events
-- **Smart Suggestions** - AI-generated recommendations for:
-  - Duplicate file detection
-  - Sensitive file alerts
-  - Sorting recipe suggestions
-- **Sidebar Navigation** - Dashboard, Recipes, Settings
-- **Organization Badge** - Current connected SharePoint organization
+```bash
+# Backend API base URL
+VITE_API_BASE_URL=http://localhost:5001
 
-## 🔗 API Integration
-
-This frontend is designed to work with the [Sorterra API](https://github.com/szachbagley/sorterra-api).
-
-**API Endpoints (to be integrated):**
-- `POST /api/auth/login` - User authentication
-- `POST /api/auth/register` - User registration
-- `GET /api/activity` - Recent activity feed
-- `GET /api/suggestions` - Smart suggestions
-- `GET /api/search` - Document search
-
-## 🛠️ Tech Stack
-
-- **React 18** - UI framework
-- **Vite** - Build tool and dev server
-- **React Router** - Client-side routing
-- **Lucide React** - Icon library
-- **CSS Modules** - Scoped styling
-
-## 📦 Dependencies
-
-```json
-{
-  "react": "^18.3.1",
-  "react-dom": "^18.3.1",
-  "react-router-dom": "^7.1.1",
-  "lucide-react": "^0.469.0"
-}
+# AWS Cognito configuration
+VITE_COGNITO_REGION=us-east-1
+VITE_COGNITO_USER_POOL_ID=us-east-1_XXXXXXXXX
+VITE_COGNITO_APP_CLIENT_ID=xxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-## 🎨 Design System
+All `VITE_*` variables are embedded at build time by Vite and accessible via `import.meta.env`.
 
-The UI follows the Sorterra brand guidelines:
-- **Professional** - Clean layout, balanced contrast
-- **Exciting** - Bright blue accents, subtle animations
-- **Human** - Rounded corners, approachable neutrals
+## Authentication
 
-## 🚧 To-Do
+Authentication is handled entirely through **AWS Cognito** using the `amazon-cognito-identity-js` SDK.
 
-### API Integration
+### Flow
 
-Backend API base URL: `http://localhost:5001` (dev) or production URL
+1. **Registration** — User signs up with email, display name, and password. Cognito sends a verification code via email. After verification, the user is automatically logged in and a corresponding record is created in the backend database.
+2. **Login** — Cognito authenticates the user and returns a JWT ID token, which is stored in `localStorage` as `sorterra_token`.
+3. **Session Restoration** — On app load, `AuthContext` checks for an existing Cognito session and restores it automatically.
+4. **Logout** — Clears Cognito session and removes stored tokens/user data.
+5. **401 Handling** — If the API returns a 401 (expired/invalid token), the user is automatically logged out and redirected to `/login`.
 
-#### Health & System
-- [ ] `GET /health` - Full health check with database status
-- [ ] `GET /health/ready` - Readiness probe
-- [ ] `GET /health/live` - Liveness probe
+### Token Storage
 
-#### Authentication & Users
-- [ ] `GET /api/users` - List all users
-- [ ] `GET /api/users/{id}` - Get user by ID
-- [ ] `POST /api/users` - Create user (register)
-  - Body: `{ cognitoSub, email, displayName }`
-- [ ] `PUT /api/users/{id}` - Update user profile
-- [ ] `DELETE /api/users/{id}` - Delete user
-- [ ] **TODO:** Wire up Login/Register pages to user endpoints
-- [ ] **TODO:** Add JWT token storage (localStorage or secure cookie)
-- [ ] **TODO:** Add authentication state management (Context API or Redux)
+| Key              | Value                              |
+| ---------------- | ---------------------------------- |
+| `sorterra_token` | JWT ID token from Cognito          |
+| `sorterra_user`  | Cached user data (sub, email, name)|
 
-#### Organizations
-- [ ] `GET /api/organizations` - List all organizations
-- [ ] `GET /api/organizations/{id}` - Get organization by ID
-- [ ] `POST /api/organizations` - Create organization
-- [ ] `PUT /api/organizations/{id}` - Update organization
-- [ ] `DELETE /api/organizations/{id}` - Delete organization
-- [ ] **TODO:** Add organization selector in Dashboard sidebar
+## API Integration
 
-#### User-Organization Membership
-- [ ] `GET /api/userorganizations` - List memberships
-- [ ] `GET /api/userorganizations/{userId}/{orgId}` - Get specific membership
-- [ ] `POST /api/userorganizations` - Add user to organization
-- [ ] `PUT /api/userorganizations/{userId}/{orgId}` - Update role/permissions
-- [ ] `DELETE /api/userorganizations/{userId}/{orgId}` - Remove user from org
+The frontend communicates with the Sorterra API through a centralized HTTP client (`src/api/client.js`).
 
-#### SharePoint Connections
-- [ ] `GET /api/sharepointconnections` - List all connections
-- [ ] `GET /api/sharepointconnections/{id}` - Get connection by ID
-- [ ] `POST /api/sharepointconnections` - Create SharePoint connection
-  - Body: `{ organizationId, siteUrl, tenantId, driveId, connectionStatus, createdBy }`
-- [ ] `PUT /api/sharepointconnections/{id}` - Update connection status
-- [ ] `DELETE /api/sharepointconnections/{id}` - Delete connection
-- [ ] **TODO:** Build SharePoint connection flow UI (OAuth redirect, site picker)
-- [ ] **TODO:** Display connection status in Dashboard sidebar
+### Base Client
 
-#### Sorting Recipes
-- [ ] `GET /api/sortingrecipes` - List all recipes (supports filters: `?organizationId`, `?isActive`, `?orderBy`)
-- [ ] `GET /api/sortingrecipes/{id}` - Get recipe by ID
-- [ ] `GET /api/sortingrecipes/by-connection/{connectionId}` - Get active recipes for a connection
-- [ ] `POST /api/sortingrecipes` - Create sorting recipe
-  - Body: `{ organizationId, name, description, fileTypePattern, destinationPathTemplate, isActive, priority, rules, createdBy }`
-- [ ] `PUT /api/sortingrecipes/{id}` - Update recipe
-- [ ] `DELETE /api/sortingrecipes/{id}` - Delete recipe
-- [ ] **TODO:** Build Recipes page (CRUD interface for sorting rules)
-- [ ] **TODO:** Add recipe priority drag-and-drop reordering
+- Built on the Fetch API with automatic JSON parsing
+- Attaches `Authorization: Bearer <token>` to all requests
+- Returns user-friendly error messages for common HTTP status codes (400, 401, 403, 404, 409, 422, 429, 500, 502, 503)
+- Handles network errors and 204 No Content responses
+- Configurable 401 callback for automatic logout
 
-#### Processed Files
-- [ ] `GET /api/processedfiles` - List all processed files
-- [ ] `GET /api/processedfiles/{id}` - Get file by ID
-- [ ] `POST /api/processedfiles` - Log processed file
-- [ ] `PUT /api/processedfiles/{id}` - Update file status/classification
-- [ ] `DELETE /api/processedfiles/{id}` - Delete file record
-- [ ] **TODO:** Display processed files in Dashboard activity feed (connect to real data)
+### Service Modules
 
-#### Activity Logs
-- [ ] `GET /api/activitylogs` - List all activity logs
-- [ ] `GET /api/activitylogs/{id}` - Get log by ID
-- [ ] `POST /api/activitylogs` - Create activity log entry
-- [ ] `PUT /api/activitylogs/{id}` - Update log
-- [ ] `DELETE /api/activitylogs/{id}` - Delete log
-- [ ] **TODO:** Replace hardcoded activity feed with real API data
-- [ ] **TODO:** Add real-time updates (polling every 10s or WebSocket)
+| Module                     | Resource                  | Operations                                     |
+| -------------------------- | ------------------------- | ---------------------------------------------- |
+| `authApi`                  | Authentication            | login, register, confirm, resend code, logout  |
+| `usersApi`                 | Users                     | CRUD, lookup by Cognito sub                    |
+| `organizationsApi`         | Organizations             | CRUD                                           |
+| `userOrganizationsApi`     | Memberships               | CRUD, lookup by user ID                        |
+| `recipesApi`               | Sorting Recipes           | CRUD with filters (orgId, isActive, orderBy)   |
+| `sharePointConnectionsApi` | SharePoint Connections    | CRUD                                           |
+| `processedFilesApi`        | Processed Files           | CRUD                                           |
+| `activityApi`              | Activity Logs             | CRUD, recent by organization                   |
+| `searchApi`                | Search Queries            | search, history, update results, track clicks  |
 
-#### Search Queries
-- [ ] `GET /api/searchqueries` - List search query history
-- [ ] `GET /api/searchqueries/{id}` - Get query by ID
-- [ ] `POST /api/searchqueries` - Log search query
-  - Body: `{ organizationId, userId, queryText, queryEmbedding, resultsCount, latencyMs }`
-- [ ] `PUT /api/searchqueries/{id}` - Update query results/clicks
-- [ ] `DELETE /api/searchqueries/{id}` - Delete query record
-- [ ] **TODO:** Wire up Dashboard search bar to backend
-- [ ] **TODO:** Implement semantic search results display
+All endpoints are prefixed with `/api/` and target the base URL defined by `VITE_API_BASE_URL`.
 
-#### OAuth Tokens
-- [ ] `GET /api/oauthtokens` - List OAuth tokens (encrypted fields excluded)
-- [ ] `GET /api/oauthtokens/{id}` - Get token by ID
-- [ ] `POST /api/oauthtokens` - Store OAuth token
-- [ ] `PUT /api/oauthtokens/{id}` - Update token
-- [ ] `DELETE /api/oauthtokens/{id}` - Delete token
-- [ ] **TODO:** Handle OAuth flow for SharePoint connections
+## Pages & Routes
 
-#### Document Chunks (RAG)
-- [ ] `GET /api/documentchunks` - List document chunks
-- [ ] `GET /api/documentchunks/{id}` - Get chunk by ID
-- [ ] `POST /api/documentchunks` - Create document chunk with embedding
-- [ ] `PUT /api/documentchunks/{id}` - Update chunk
-- [ ] `DELETE /api/documentchunks/{id}` - Delete chunk
-- [ ] **TODO:** Display search results with highlighted chunks
+| Path          | Component      | Auth Required | Description                                           |
+| ------------- | -------------- | ------------- | ----------------------------------------------------- |
+| `/`           | —              | No            | Redirects to `/login`                                 |
+| `/login`      | `Login`        | No            | Email/password authentication                         |
+| `/register`   | `Register`     | No            | Two-step signup with email verification               |
+| `/dashboard`  | `Dashboard`    | Yes           | Home — stats cards, activity feed, search, suggestions|
+| `/recipes`    | `Recipes`      | Yes           | Sorting recipe table with CRUD, filtering, and search |
+| `/files`      | `Files`        | Yes           | Processed files list with expandable metadata details |
+| `/settings`   | `Settings`     | Yes           | Profile, organization members, SharePoint connections |
 
-#### Webhook Events
-- [ ] `GET /api/webhookevents` - List webhook events (debugging/replay)
-- [ ] `GET /api/webhookevents/{id}` - Get event by ID
-- [ ] `POST /api/webhookevents` - Log webhook event
-- [ ] `PUT /api/webhookevents/{id}` - Update event
-- [ ] `DELETE /api/webhookevents/{id}` - Delete event
+All authenticated routes are wrapped in `ProtectedRoute`, which redirects to `/login` if no valid session exists. Pages are lazy-loaded with `React.lazy()` and `Suspense` for optimal bundle splitting.
 
-### Frontend Features
-- [ ] Add API client setup (axios or fetch wrapper)
-- [ ] Add loading states and error handling
-- [ ] Add Recipes page (sorting rule management UI)
-- [ ] Add Settings page (user/org configuration)
-- [ ] Implement real-time activity updates (polling/WebSocket)
-- [ ] Add responsive mobile design
-- [ ] Add user profile dropdown
-- [ ] Add logout functionality
-- [ ] Add SharePoint OAuth connection flow
-- [ ] Add "Smart Suggestions" backend integration (duplicate detection, sensitive files)
-- [ ] Add toast notifications for success/error messages
+## Component Library
 
-## 👥 Team
+### Layout
+- **`DashboardLayout`** — Sidebar navigation with collapsible menu, header with user info, and main content area
 
-- **Patrick Petty** - Frontend Developer
-- **Zach Bagley** - Backend API & Authentication
-- **McKay Boody** - Cloud Infrastructure & DevOps
-- **Nate Shaw** - AI/ML (Classification)
-- **Caleb Gooch** - AI/ML (Search & RAG)
+### Modals & Dialogs
+- **`RecipeModal`** — Form for creating/editing sorting recipes with template variable insertion buttons (`[Year]`, `[Month]`, `[Day]`, `[Type]`, `[Department]`) and live path preview
+- **`ConnectionModal`** — Form for adding new SharePoint connections (site URL, tenant ID, source folder)
+- **`ConfirmDialog`** — Generic confirmation dialog for destructive actions (delete recipe, remove member, etc.)
 
-## 📄 License
+### Feedback
+- **`Toast`** — Stackable notifications with auto-dismiss, managed via `ToastContext` (success, error, warning, info variants)
+- **`LoadingSpinner`** — Full-page overlay or inline spinner with optional message
+- **`EmptyState`** — Illustrated placeholder with optional call-to-action button
+- **`ErrorBoundary`** — Catches render errors with a recovery UI
+
+### Accessibility
+- Focus trapping in modals (`useFocusTrap` hook)
+- ARIA labels, roles, and attributes throughout
+- Keyboard navigation (Escape to close modals)
+- Semantic HTML elements
+
+## Styling & Design System
+
+### Approach
+- **Tailwind CSS 4** for utility-first styling
+- **CSS Modules** (component-scoped `.css` files) for complex component styles
+- **CSS Custom Properties** for theme tokens
+
+### Color Palette
+
+| Token          | Value     | Usage                     |
+| -------------- | --------- | ------------------------- |
+| Primary Blue   | `#2196F3` | Buttons, links, accents   |
+| Sidebar Dark   | `#2C3E50` | Sidebar background        |
+| Sidebar Hover  | `#34495E` | Sidebar hover states      |
+| Sidebar Deep   | `#1A252F` | Sidebar active/dark areas |
+| Success Green  | `#10B981` | Success states, completed |
+| Warning Amber  | `#F59E0B` | Warnings, pending states  |
+| Error Red      | `#EF4444` | Errors, failed states     |
+
+### Typography
+- **Font:** Inter (Google Fonts) — weights 400, 500, 600, 700
+- Clean, professional aesthetic with rounded corners and subtle box shadows
+
+### UI Patterns
+- Skeleton loaders during data fetching
+- Animated modals and toast notifications
+- Color-coded status badges and activity type indicators
+- Responsive layouts with flexbox and CSS grid
+
+## Docker Deployment
+
+The project includes a multi-stage Dockerfile for production deployment.
+
+### Build & Run
+
+```bash
+docker build \
+  --build-arg VITE_API_BASE_URL=https://api.sorterra.example.com \
+  --build-arg VITE_COGNITO_REGION=us-east-1 \
+  --build-arg VITE_COGNITO_USER_POOL_ID=us-east-1_XXXXXXXXX \
+  --build-arg VITE_COGNITO_APP_CLIENT_ID=xxxxxxxxxxxxxxxxxxxxxxxxxx \
+  -t sorterra-frontend .
+
+docker run -p 80:80 sorterra-frontend
+```
+
+### How It Works
+
+1. **Build stage** (`node:22-alpine`) — Installs dependencies with `npm ci`, injects `VITE_*` environment variables as build args, and runs `npm run build` to produce static assets in `/dist`
+2. **Serve stage** (`nginx:1.27-alpine`) — Copies the built assets into Nginx's web root with a custom config that handles SPA routing (all paths fall back to `index.html`)
+
+### Nginx Features
+- SPA routing via `try_files` fallback
+- 1-year cache headers for content-hashed assets (JS, CSS, fonts, images)
+- Security headers (`X-Frame-Options`, `X-Content-Type-Options`)
+- Built-in healthcheck (`wget http://localhost/`)
+
+## Team
+
+- **Patrick Petty** — Frontend Developer
+- **Zach Bagley** — Backend API & Authentication
+- **McKay Boody** — Cloud Infrastructure & DevOps
+- **Nate Shaw** — AI/ML (Classification)
+- **Caleb Gooch** — AI/ML (Search & RAG)
+
+## License
 
 MISM Capstone Project
