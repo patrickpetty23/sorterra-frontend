@@ -1,20 +1,30 @@
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, ExternalLink } from 'lucide-react';
 import useFocusTrap from '../hooks/useFocusTrap';
 import './RecipeModal.css';
 
+const STORAGE_KEY = 'sorterra_sp_pending';
+
+const MS_CLIENT_ID = import.meta.env.VITE_MS_CLIENT_ID;
+const MS_REDIRECT_URI = import.meta.env.VITE_MS_REDIRECT_URI;
+const AUTHORITY = 'https://login.microsoftonline.com/common';
+
 const EMPTY_FORM = {
   siteUrl: '',
-  tenantId: '',
   sourceFolder: '',
 };
 
-export default function ConnectionModal({ onSave, onClose }) {
+export default function ConnectionModal({ onClose }) {
   const [form, setForm] = useState(EMPTY_FORM);
-  const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
-  const [saveError, setSaveError] = useState(null);
+  const [configError, setConfigError] = useState(null);
   const trapRef = useFocusTrap();
+
+  useEffect(() => {
+    if (!MS_CLIENT_ID || !MS_REDIRECT_URI) {
+      setConfigError('Microsoft OAuth is not configured. Set VITE_MS_CLIENT_ID and VITE_MS_REDIRECT_URI in your environment.');
+    }
+  }, []);
 
   useEffect(() => {
     const handleKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -42,39 +52,42 @@ export default function ConnectionModal({ onSave, onClose }) {
     return Object.keys(errs).length === 0;
   };
 
-  const handleSubmit = async (e) => {
+  const handleAuthenticate = (e) => {
     e.preventDefault();
     if (!validate()) return;
 
-    setSaving(true);
-    setSaveError(null);
-    try {
-      await onSave({
-        siteUrl: form.siteUrl.trim(),
-        tenantId: form.tenantId.trim() || null,
-        sourceFolder: form.sourceFolder.trim() || null,
-      });
-    } catch (err) {
-      setSaveError(err.message || 'Failed to add connection. Please try again.');
-    } finally {
-      setSaving(false);
-    }
+    const state = crypto.randomUUID();
+
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
+      siteUrl: form.siteUrl.trim(),
+      sourceFolder: form.sourceFolder.trim() || null,
+      state,
+    }));
+
+    const authUrl =
+      `${AUTHORITY}/adminconsent` +
+      `?client_id=${encodeURIComponent(MS_CLIENT_ID)}` +
+      `&state=${encodeURIComponent(state)}` +
+      `&redirect_uri=${encodeURIComponent(MS_REDIRECT_URI)}`;
+
+    window.location.href = authUrl;
   };
 
   return (
     <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="connection-modal-title">
       <div className="modal-container" ref={trapRef} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2 id="connection-modal-title">Add SharePoint Connection</h2>
+          <h2 id="connection-modal-title">Connect SharePoint</h2>
           <button className="modal-close" onClick={onClose} aria-label="Close">
             <X size={20} aria-hidden="true" />
           </button>
         </div>
 
-        <form className="modal-body" onSubmit={handleSubmit}>
-          {saveError && (
-            <div className="modal-error" role="alert">{saveError}</div>
+        <form className="modal-body" onSubmit={handleAuthenticate}>
+          {configError && (
+            <div className="modal-error" role="alert">{configError}</div>
           )}
+
           <div className="form-group">
             <label htmlFor="conn-site-url">SharePoint Site URL *</label>
             <input
@@ -92,18 +105,6 @@ export default function ConnectionModal({ onSave, onClose }) {
           </div>
 
           <div className="form-group">
-            <label htmlFor="conn-tenant-id">Tenant ID</label>
-            <input
-              id="conn-tenant-id"
-              type="text"
-              value={form.tenantId}
-              onChange={(e) => handleChange('tenantId', e.target.value)}
-              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-            />
-            <span className="field-hint">Found in Azure Active Directory &gt; Properties.</span>
-          </div>
-
-          <div className="form-group">
             <label htmlFor="conn-source">Source Folder</label>
             <input
               id="conn-source"
@@ -116,16 +117,22 @@ export default function ConnectionModal({ onSave, onClose }) {
           </div>
 
           <div className="form-note">
-            The connection will be created in <strong>pending</strong> status.
-            Full OAuth authentication will be configured in a future update.
+            Clicking the button below will redirect you to Microsoft to grant admin consent
+            for Sorterra to access your SharePoint. You will be returned here automatically.
           </div>
 
           <div className="modal-footer">
-            <button type="button" className="btn btn-secondary" onClick={onClose} disabled={saving}>
+            <button type="button" className="btn btn-secondary" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? 'Adding...' : 'Add Connection'}
+            <button
+              type="submit"
+              disabled={!!configError}
+              className="btn"
+              style={{ backgroundColor: '#0078D4', color: '#fff', border: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+            >
+              <ExternalLink size={16} />
+              Authenticate with Microsoft
             </button>
           </div>
         </form>

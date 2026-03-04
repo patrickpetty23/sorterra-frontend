@@ -14,6 +14,7 @@ const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Recipes = lazy(() => import('./pages/Recipes'));
 const Files = lazy(() => import('./pages/Files'));
 const Settings = lazy(() => import('./pages/Settings'));
+const SharePointCallback = lazy(() => import('./pages/SharePointCallback'));
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
                 <Routes>
                   <Route path="/login" element={<Login />} />
                   <Route path="/register" element={<Register />} />
+                  <Route path="/sharepoint/callback" element={<ProtectedRoute><SharePointCallback /></ProtectedRoute>} />
                   <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/recipes" element={<Recipes />} />

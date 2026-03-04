@@ -215,16 +215,6 @@ function Settings() {
     }
   };
 
-  const handleAddConnection = async (formData) => {
-    const created = await sharePointConnectionsApi.create({
-      ...formData,
-      organizationId: organization?.id || null,
-    });
-    setConnections((prev) => [...prev, created]);
-    toast.success('Connection added');
-    setAddModalOpen(false);
-  };
-
   const getStatusConfig = (status) => {
     return STATUS_CONFIG[status] || STATUS_CONFIG.pending;
   };
@@ -565,7 +555,6 @@ function Settings() {
       {/* Add Connection Modal */}
       {addModalOpen && (
         <ConnectionModal
-          onSave={handleAddConnection}
           onClose={() => setAddModalOpen(false)}
         />
       )}
