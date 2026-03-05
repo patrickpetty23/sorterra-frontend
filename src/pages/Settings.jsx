@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Globe, Plus, RefreshCw, Trash2, AlertCircle, CheckCircle, Clock, User, Building2, Users, Pencil } from 'lucide-react';
+import { Globe, Plus, RefreshCw, Trash2, AlertCircle, CheckCircle, Clock, User, Building2, Users, Pencil, Play } from 'lucide-react';
 import { sharePointConnectionsApi, usersApi, organizationsApi, userOrganizationsApi } from '../api';
 import { useAuth } from '../contexts/AuthContext';
 import { useOrg } from '../contexts/OrgContext';
 import { useToast } from '../contexts/ToastContext';
 import ConnectionModal from '../components/ConnectionModal';
+import SortModal from '../components/SortModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import EmptyState from '../components/EmptyState';
 import './Settings.css';
@@ -46,6 +47,7 @@ function Settings() {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [deletingConnection, setDeletingConnection] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [sortingConnection, setSortingConnection] = useState(null);
 
   useEffect(() => {
     if (!user?.sub) return;
@@ -519,6 +521,14 @@ function Settings() {
                       <span className="connection-url">{conn.siteUrl}</span>
                     </div>
                     <button
+                      className="btn btn-primary btn-sm"
+                      onClick={() => setSortingConnection(conn)}
+                      aria-label="Sort files"
+                    >
+                      <Play size={14} />
+                      <span>Sort Now</span>
+                    </button>
+                    <button
                       className="row-action-btn row-action-danger"
                       onClick={() => setDeletingConnection(conn)}
                       aria-label="Remove connection"
@@ -579,6 +589,15 @@ function Settings() {
           loading={removeMemberLoading}
           onConfirm={handleRemoveMember}
           onCancel={() => setRemovingMember(null)}
+        />
+      )}
+
+      {/* Sort Modal */}
+      {sortingConnection && (
+        <SortModal
+          connection={sortingConnection}
+          onSortComplete={fetchConnections}
+          onClose={() => setSortingConnection(null)}
         />
       )}
 
