@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Globe, Plus, RefreshCw, Trash2, AlertCircle, CheckCircle, Clock, User, Building2, Users, Pencil, Play } from 'lucide-react';
 import { sharePointConnectionsApi, usersApi, organizationsApi, userOrganizationsApi } from '../api';
 import { useAuth } from '../contexts/AuthContext';
@@ -13,6 +14,7 @@ import './Settings.css';
 const STATUS_CONFIG = {
   connected: { label: 'Connected', icon: CheckCircle, className: 'status-connected' },
   active: { label: 'Active', icon: CheckCircle, className: 'status-connected' },
+  consented: { label: 'Consented', icon: CheckCircle, className: 'status-connected' },
   pending: { label: 'Pending', icon: Clock, className: 'status-pending' },
   error: { label: 'Error', icon: AlertCircle, className: 'status-error' },
 };
@@ -32,6 +34,7 @@ function Settings() {
   const toast = useToast();
   const { user } = useAuth();
   const { organization } = useOrg();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Profile state
   const [dbUser, setDbUser] = useState(null);
@@ -189,6 +192,26 @@ function Settings() {
     fetchConnections();
   }, []);
 
+  // Handle consent callback query params
+  useEffect(() => {
+    const consent = searchParams.get('consent');
+    if (!consent) return;
+
+    if (consent === 'success') {
+      toast.success('SharePoint connected successfully! Your organization has been authorized.');
+      fetchConnections();
+    } else if (consent === 'error') {
+      const message = searchParams.get('message');
+      toast.error(message || 'SharePoint authorization failed. Please try again.');
+    }
+
+    // Clean up URL params
+    searchParams.delete('consent');
+    searchParams.delete('connectionId');
+    searchParams.delete('message');
+    setSearchParams(searchParams, { replace: true });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   async function fetchConnections() {
     setLoading(true);
     setError(null);
@@ -223,8 +246,8 @@ function Settings() {
       organizationId: organization?.id || null,
     });
     setConnections((prev) => [...prev, created]);
-    toast.success('Connection added');
     setAddModalOpen(false);
+    return created;
   };
 
   const getStatusConfig = (status) => {
@@ -523,6 +546,7 @@ function Settings() {
                     <button
                       className="btn btn-primary btn-sm"
                       onClick={() => setSortingConnection(conn)}
+                      disabled={conn.connectionStatus === 'pending' || conn.connectionStatus === 'error'}
                       aria-label="Sort files"
                     >
                       <Play size={14} />

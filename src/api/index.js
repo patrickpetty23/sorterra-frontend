@@ -12,3 +12,4 @@ export { usersApi } from './users';
 export { userOrganizationsApi } from './userOrganizations';
 export { processedFilesApi } from './processedFiles';
 export { sharePointConnectionsApi } from './sharePointConnections';
+export { sharePointAuthApi } from './sharePointAuth';

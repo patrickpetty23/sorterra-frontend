@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
+import { sharePointAuthApi } from '../api';
 import useFocusTrap from '../hooks/useFocusTrap';
 import './RecipeModal.css';
 
 const EMPTY_FORM = {
   siteUrl: '',
-  tenantId: '',
   sourceFolder: '',
 };
 
@@ -49,11 +49,13 @@ export default function ConnectionModal({ onSave, onClose }) {
     setSaving(true);
     setSaveError(null);
     try {
-      await onSave({
+      const created = await onSave({
         siteUrl: form.siteUrl.trim(),
-        tenantId: form.tenantId.trim() || null,
         sourceFolder: form.sourceFolder.trim() || null,
       });
+      // Initiate admin consent flow — redirect to Microsoft
+      const { consentUrl } = await sharePointAuthApi.getConsentUrl(created.id);
+      window.location.href = consentUrl;
     } catch (err) {
       setSaveError(err.message || 'Failed to add connection. Please try again.');
     } finally {
@@ -92,18 +94,6 @@ export default function ConnectionModal({ onSave, onClose }) {
           </div>
 
           <div className="form-group">
-            <label htmlFor="conn-tenant-id">Tenant ID</label>
-            <input
-              id="conn-tenant-id"
-              type="text"
-              value={form.tenantId}
-              onChange={(e) => handleChange('tenantId', e.target.value)}
-              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-            />
-            <span className="field-hint">Found in Azure Active Directory &gt; Properties.</span>
-          </div>
-
-          <div className="form-group">
             <label htmlFor="conn-source">Source Folder</label>
             <input
               id="conn-source"
@@ -116,8 +106,7 @@ export default function ConnectionModal({ onSave, onClose }) {
           </div>
 
           <div className="form-note">
-            The connection will be created in <strong>pending</strong> status.
-            Full OAuth authentication will be configured in a future update.
+            You will be redirected to Microsoft to authorize Sorterra for your organization.
           </div>
 
           <div className="modal-footer">
@@ -125,7 +114,7 @@ export default function ConnectionModal({ onSave, onClose }) {
               Cancel
             </button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? 'Adding...' : 'Add Connection'}
+              {saving ? 'Connecting...' : 'Save & Connect to Microsoft'}
             </button>
           </div>
         </form>
