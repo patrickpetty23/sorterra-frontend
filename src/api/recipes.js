@@ -49,6 +49,15 @@ export const recipesApi = {
   },
 
   /**
+   * Bulk update recipe priorities (e.g. after drag-and-drop). Auto-save on drop.
+   * @param {Array<{ id: string, priority: number }>} updates
+   */
+  async updatePriorities(updates) {
+    const body = updates.map(({ id, priority }) => ({ id, priority }));
+    return await apiClient.patch('/api/sortingrecipes/priorities', body);
+  },
+
+  /**
    * Delete a sorting recipe
    */
   async delete(id) {

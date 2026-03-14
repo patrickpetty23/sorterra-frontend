@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, CheckCircle, AlertCircle, Loader } from 'lucide-react';
-import { recipesApi } from '../api';
 import { sortApi } from '../api/sort';
 import { useToast } from '../contexts/ToastContext';
 import useFocusTrap from '../hooks/useFocusTrap';
@@ -10,9 +9,6 @@ import './RecipeModal.css';
 export default function SortModal({ connection, onClose, onSortComplete }) {
   const navigate = useNavigate();
   const toast = useToast();
-  const [recipes, setRecipes] = useState([]);
-  const [recipesLoading, setRecipesLoading] = useState(true);
-  const [selectedRecipeId, setSelectedRecipeId] = useState('');
   const [folderPath, setFolderPath] = useState(connection.sourceFolder || '');
   const [sorting, setSorting] = useState(false);
   const [result, setResult] = useState(null);
@@ -25,34 +21,15 @@ export default function SortModal({ connection, onClose, onSortComplete }) {
     return () => document.removeEventListener('keydown', handleKey);
   }, [onClose]);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function fetchRecipes() {
-      try {
-        const data = await recipesApi.getAll({ isActive: true });
-        if (!cancelled) {
-          setRecipes(data);
-          if (data.length > 0) setSelectedRecipeId(data[0].id);
-        }
-      } catch {
-        if (!cancelled) setError('Failed to load recipes');
-      } finally {
-        if (!cancelled) setRecipesLoading(false);
-      }
-    }
-    fetchRecipes();
-    return () => { cancelled = true; };
-  }, []);
-
   const handleSort = async (e) => {
     e.preventDefault();
-    if (!selectedRecipeId || !folderPath.trim()) return;
+    if (!folderPath.trim()) return;
 
     setSorting(true);
     setError(null);
     setResult(null);
     try {
-      const data = await sortApi.triggerSort(connection.id, selectedRecipeId, folderPath.trim());
+      const data = await sortApi.triggerSort(connection.id, folderPath.trim());
       setResult(data);
       toast.success(`Sorted ${data.filesSorted}/${data.filesFound} files`);
       if (onSortComplete) onSortComplete();
@@ -82,28 +59,9 @@ export default function SortModal({ connection, onClose, onSortComplete }) {
             <input type="text" value={connection.siteUrl} disabled />
           </div>
 
-          {/* Recipe dropdown */}
-          <div className="form-group">
-            <label htmlFor="sort-recipe">Recipe *</label>
-            {recipesLoading ? (
-              <input type="text" value="Loading recipes..." disabled />
-            ) : recipes.length === 0 ? (
-              <input type="text" value="No active recipes found" disabled />
-            ) : (
-              <select
-                id="sort-recipe"
-                value={selectedRecipeId}
-                onChange={(e) => setSelectedRecipeId(e.target.value)}
-                disabled={sorting}
-              >
-                {recipes.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name}{r.description ? ` — ${r.description}` : ''}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
+          <p className="form-hint" style={{ marginBottom: '0.75rem' }}>
+            All active recipes for this connection are applied together. Toggle recipes on or off from the Recipes page.
+          </p>
 
           {/* Folder path */}
           <div className="form-group">
@@ -191,7 +149,7 @@ export default function SortModal({ connection, onClose, onSortComplete }) {
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={sorting || !selectedRecipeId || !folderPath.trim() || recipesLoading || recipes.length === 0}
+                disabled={sorting || !folderPath.trim()}
               >
                 {sorting ? 'Sorting...' : 'Sort Now'}
               </button>
