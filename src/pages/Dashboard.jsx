@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Search, AlertTriangle, Lock, Zap, Clock, FileText, ClipboardList, Globe, Inbox } from 'lucide-react';
-import { activityApi, searchApi, recipesApi, processedFilesApi, sharePointConnectionsApi } from '../api';
-import { useAuth } from '../contexts/AuthContext';
-import { useToast } from '../contexts/ToastContext';
-import LoadingSpinner from '../components/LoadingSpinner';
+import { FileText, ClipboardList, Globe, Inbox, TrendingUp, CheckCircle, BarChart2 } from 'lucide-react';
+import { activityApi, recipesApi, processedFilesApi, sharePointConnectionsApi } from '../api';
 import EmptyState from '../components/EmptyState';
 
 const ACTIVITY_COLORS = {
@@ -12,43 +9,9 @@ const ACTIVITY_COLORS = {
   file_renamed: 'purple',
   recipe_created: 'green',
   recipe_executed: 'blue',
+  sort_completed: 'blue',
 };
 
-const EXAMPLE_QUERIES = [
-  'Find all contracts with CenCore',
-  'Show me Q3 financial reports',
-  'What documents mention security clearances?',
-];
-
-const SUGGESTIONS = [
-  {
-    id: 1,
-    icon: AlertTriangle,
-    title: 'Found 12 duplicate files',
-    description: 'Review and remove duplicates to save 45 MB',
-    action: 'Review',
-    color: '#FEF3C7',
-    textColor: '#92400E',
-  },
-  {
-    id: 2,
-    icon: Lock,
-    title: 'Sensitive file detected: Payroll_2024.xlsx',
-    description: 'Currently accessible by 15 users',
-    action: 'Review Access',
-    color: '#FEE2E2',
-    textColor: '#991B1B',
-  },
-  {
-    id: 3,
-    icon: Zap,
-    title: 'New sorting recipe suggested',
-    description: 'AI suggests sorting contracts by client and quarter',
-    action: 'Review Recipe',
-    color: '#DBEAFE',
-    textColor: '#1E40AF',
-  },
-];
 
 function formatTimeAgo(dateString) {
   const now = new Date();
@@ -72,20 +35,16 @@ function formatActivityType(activityType) {
 }
 
 function Dashboard() {
-  const { user } = useAuth();
-  const toast = useToast();
-
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchSubmitting, setSearchSubmitting] = useState(false);
-  const [searchHistory, setSearchHistory] = useState([]);
-  const [historyLoading, setHistoryLoading] = useState(true);
-
   const [stats, setStats] = useState({ filesProcessed: 0, activeRecipes: 0, connectedSites: 0 });
   const [statsLoading, setStatsLoading] = useState(true);
+  const [allProcessedFiles, setAllProcessedFiles] = useState([]);
 
   const [recentActivity, setRecentActivity] = useState([]);
   const [activityLoading, setActivityLoading] = useState(true);
   const [activityError, setActivityError] = useState(null);
+
+  // Sorting stats filter
+  const [sortingFilter, setSortingFilter] = useState('all');
 
   useEffect(() => {
     let cancelled = false;
@@ -103,13 +62,13 @@ function Dashboard() {
         today.setHours(0, 0, 0, 0);
         const filesToday = files.filter((f) => new Date(f.processedAt || f.createdAt) >= today);
 
+        setAllProcessedFiles(files);
         setStats({
           filesProcessed: filesToday.length,
           filesTotal: files.length,
           activeRecipes: recipes.filter((r) => r.isActive).length,
           recipesTotal: recipes.length,
-          connectedSites: connections.filter((c) => c.connectionStatus === 'connected').length,
-          sitesTotal: connections.length,
+          siteConnection: connections[0] ?? null,
         });
       } catch {
         // Stats are non-critical
@@ -144,112 +103,39 @@ function Dashboard() {
     return () => { cancelled = true; };
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function fetchHistory() {
-      try {
-        const history = await searchApi.getHistory();
-        if (cancelled) return;
-        const sorted = history
-          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-          .slice(0, 5);
-        setSearchHistory(sorted);
-      } catch {
-        // Search history is non-critical; fail silently
-      } finally {
-        if (!cancelled) setHistoryLoading(false);
+  // ── Derived sorting stats ──────────────────────────────────────────────
+  const filteredFiles = (() => {
+    const now = new Date();
+    return allProcessedFiles.filter((f) => {
+      const date = new Date(f.processedAt || f.createdAt);
+      if (sortingFilter === 'day') {
+        const today = new Date(now); today.setHours(0, 0, 0, 0);
+        return date >= today;
       }
-    }
+      if (sortingFilter === 'month') {
+        return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
+      }
+      return true; // 'all'
+    });
+  })();
 
-    fetchHistory();
-    return () => { cancelled = true; };
-  }, []);
+  const totalSorted = filteredFiles.filter((f) => f.status === 'success').length;
 
-  const handleSearch = async (query) => {
-    const text = (query || searchQuery).trim();
-    if (!text || searchSubmitting) return;
+  const sortRuns = recentActivity.filter((a) => a.activityType === 'sort_completed');
+  const avgFilesPerRun = sortRuns.length === 0 ? 0 : (
+    sortRuns.reduce((sum, run) => {
+      const match = run.description?.match(/(\d+)\/(\d+)/);
+      return sum + (match ? parseInt(match[1], 10) : 0);
+    }, 0) / sortRuns.length
+  ).toFixed(1);
 
-    setSearchSubmitting(true);
-    try {
-      const result = await searchApi.search(text, null, user?.sub || null);
-      toast.info('Search query recorded. Full search results will be available once the RAG backend is connected.');
-      // Prepend to local history
-      setSearchHistory((prev) => [result, ...prev].slice(0, 5));
-      setSearchQuery('');
-    } catch (err) {
-      toast.error(err.message || 'Search failed');
-    } finally {
-      setSearchSubmitting(false);
-    }
-  };
-
-  const handleSearchKeyDown = (e) => {
-    if (e.key === 'Enter') handleSearch();
-  };
+  const successRate = allProcessedFiles.length === 0 ? null : (
+    (allProcessedFiles.filter((f) => f.status === 'success').length / allProcessedFiles.length) * 100
+  ).toFixed(1);
+  // ──────────────────────────────────────────────────────────────────────
 
   return (
     <>
-      {/* Search Section */}
-      <div className="search-section card">
-        <div className="search-bar">
-          <Search size={20} color="#9CA3AF" aria-hidden="true" />
-          <input
-            type="text"
-            placeholder="Search for information or ask a question..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={handleSearchKeyDown}
-            disabled={searchSubmitting}
-          />
-          {searchSubmitting ? (
-            <LoadingSpinner size="sm" />
-          ) : (
-            <button
-              className="search-submit"
-              onClick={() => handleSearch()}
-              disabled={!searchQuery.trim()}
-              aria-label="Submit search"
-            >
-              <Search size={18} aria-hidden="true" />
-            </button>
-          )}
-        </div>
-        <div className="example-queries">
-          {EXAMPLE_QUERIES.map((query) => (
-            <button
-              key={query}
-              className="example-query"
-              onClick={() => handleSearch(query)}
-              disabled={searchSubmitting}
-            >
-              {query}
-            </button>
-          ))}
-        </div>
-
-        {/* Search History */}
-        {!historyLoading && searchHistory.length > 0 && (
-          <div className="search-history">
-            <h3 className="search-history-title">Recent Searches</h3>
-            <div className="search-history-list">
-              {searchHistory.map((item) => (
-                <button
-                  key={item.id}
-                  className="search-history-item"
-                  onClick={() => handleSearch(item.queryText)}
-                  disabled={searchSubmitting}
-                >
-                  <Clock size={14} aria-hidden="true" />
-                  <span>{item.queryText}</span>
-                  <span className="search-history-time">{formatTimeAgo(item.createdAt)}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
       {/* Stats Cards */}
       <div className="stats-grid">
         {statsLoading ? (
@@ -289,9 +175,17 @@ function Dashboard() {
                 <Globe size={22} />
               </div>
               <div className="stat-info">
-                <div className="stat-value">{stats.connectedSites}</div>
-                <div className="stat-label">Connected sites</div>
-                <div className="stat-sub">{stats.sitesTotal} total</div>
+                <div className="stat-value" style={{ fontSize: stats.siteConnection ? '1.1rem' : undefined }}>
+                  {stats.siteConnection
+                    ? stats.siteConnection.connectionStatus === 'connected' ? 'Connected' : 'Not Connected'
+                    : 'No site configured'}
+                </div>
+                <div className="stat-label">SharePoint site</div>
+                {stats.siteConnection?.siteUrl && (
+                  <div className="stat-sub" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {stats.siteConnection.siteUrl}
+                  </div>
+                )}
               </div>
             </div>
           </>
@@ -347,35 +241,68 @@ function Dashboard() {
           )}
         </div>
 
-        {/* Smart Suggestions */}
+        {/* Sorting Stats */}
         <div className="card suggestions-card">
           <div className="card-header">
-            <h2>Smart Suggestions</h2>
+            <h2>Sorting Stats</h2>
           </div>
-          <div className="suggestions-list">
-            {SUGGESTIONS.map((suggestion) => {
-              const Icon = suggestion.icon;
-              return (
-                <div
-                  key={suggestion.id}
-                  className="suggestion-item"
-                  style={{ backgroundColor: suggestion.color }}
-                >
-                  <div className="suggestion-icon" style={{ color: suggestion.textColor }}>
-                    <Icon size={20} />
-                  </div>
-                  <div className="suggestion-content">
-                    <h3 style={{ color: suggestion.textColor }}>{suggestion.title}</h3>
-                    <p style={{ color: suggestion.textColor, opacity: 0.8 }}>
-                      {suggestion.description}
-                    </p>
-                    <button className="suggestion-action" style={{ color: suggestion.textColor }}>
-                      {suggestion.action}
-                    </button>
-                  </div>
+          <div className="sorting-stats-grid">
+
+            {/* Card 1 — Total Files Sorted */}
+            <div className="sorting-stat-card">
+              <div className="sorting-stat-header">
+                <div className="sorting-stat-icon-wrap sorting-icon-blue">
+                  <TrendingUp size={18} />
                 </div>
-              );
-            })}
+                <div className="sorting-filter-tabs">
+                  {['day', 'month', 'all'].map((f) => (
+                    <button
+                      key={f}
+                      className={`filter-tab${sortingFilter === f ? ' filter-tab-active' : ''}`}
+                      onClick={() => setSortingFilter(f)}
+                    >
+                      {f === 'day' ? 'Day' : f === 'month' ? 'Month' : 'All Time'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="sorting-stat-value">{statsLoading ? '—' : totalSorted.toLocaleString()}</div>
+              <div className="sorting-stat-label">Files Sorted</div>
+            </div>
+
+            {/* Card 2 — Avg Files Per Sort Run */}
+            <div className="sorting-stat-card">
+              <div className="sorting-stat-header">
+                <div className="sorting-stat-icon-wrap sorting-icon-green">
+                  <BarChart2 size={18} />
+                </div>
+              </div>
+              <div className="sorting-stat-value">{activityLoading ? '—' : avgFilesPerRun}</div>
+              <div className="sorting-stat-label">Avg Files / Sort Run</div>
+              <div className="sorting-stat-sub">{sortRuns.length} run{sortRuns.length !== 1 ? 's' : ''} total</div>
+            </div>
+
+            {/* Card 3 — Success Rate */}
+            <div className="sorting-stat-card">
+              <div className="sorting-stat-header">
+                <div className="sorting-stat-icon-wrap sorting-icon-purple">
+                  <CheckCircle size={18} />
+                </div>
+              </div>
+              <div className="sorting-stat-value">
+                {statsLoading ? '—' : successRate === null ? 'N/A' : `${successRate}%`}
+              </div>
+              <div className="sorting-stat-label">Success Rate</div>
+              {successRate !== null && (
+                <div className="success-rate-bar-track">
+                  <div
+                    className="success-rate-bar-fill"
+                    style={{ width: `${successRate}%` }}
+                  />
+                </div>
+              )}
+            </div>
+
           </div>
         </div>
       </div>
