@@ -1,18 +1,12 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import useFocusTrap from '../hooks/useFocusTrap';
 import './RecipeModal.css';
 
-const TEMPLATE_VARS = ['[Year]', '[Month]', '[Date]', '[Vendor]', '[Type]', '[Client]'];
-
 const EMPTY_FORM = {
   name: '',
-  description: '',
-  fileTypePattern: '',
-  destinationPathTemplate: '',
   isActive: true,
-  priority: 0,
-  rules: '{}',
+  rules: '',
 };
 
 export default function RecipeModal({ recipe, onSave, onClose }) {
@@ -25,14 +19,22 @@ export default function RecipeModal({ recipe, onSave, onClose }) {
 
   useEffect(() => {
     if (recipe) {
+      const rulesRaw = recipe.rules;
+      const rulesText =
+        typeof rulesRaw === 'string'
+          ? (() => {
+              try {
+                const arr = JSON.parse(rulesRaw);
+                return Array.isArray(arr) ? arr.join('\n') : String(rulesRaw);
+              } catch {
+                return String(rulesRaw);
+              }
+            })()
+          : '';
       setForm({
         name: recipe.name || '',
-        description: recipe.description || '',
-        fileTypePattern: recipe.fileTypePattern || '',
-        destinationPathTemplate: recipe.destinationPathTemplate || '',
         isActive: recipe.isActive ?? true,
-        priority: recipe.priority ?? 0,
-        rules: typeof recipe.rules === 'string' ? recipe.rules : JSON.stringify(recipe.rules || {}, null, 2),
+        rules: rulesText,
       });
     } else {
       setForm(EMPTY_FORM);
@@ -52,34 +54,9 @@ export default function RecipeModal({ recipe, onSave, onClose }) {
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: null }));
   };
 
-  const pathPreview = useMemo(() => {
-    if (!form.destinationPathTemplate) return null;
-    const now = new Date();
-    const subs = {
-      '[Year]': String(now.getFullYear()),
-      '[Month]': String(now.getMonth() + 1).padStart(2, '0'),
-      '[Date]': now.toISOString().slice(0, 10),
-      '[Vendor]': 'Acme Corp',
-      '[Type]': form.fileTypePattern || 'Document',
-      '[Client]': 'CenCore',
-    };
-    let preview = form.destinationPathTemplate;
-    for (const [key, val] of Object.entries(subs)) {
-      preview = preview.replaceAll(key, val);
-    }
-    return preview;
-  }, [form.destinationPathTemplate, form.fileTypePattern]);
-
   const validate = () => {
     const errs = {};
     if (!form.name.trim()) errs.name = 'Name is required';
-    if (form.rules.trim()) {
-      try {
-        JSON.parse(form.rules);
-      } catch {
-        errs.rules = 'Invalid JSON';
-      }
-    }
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -88,22 +65,25 @@ export default function RecipeModal({ recipe, onSave, onClose }) {
     e.preventDefault();
     if (!validate()) return;
 
+    const rulesJson = form.rules
+      .split('\n')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const payload = {
+      name: form.name,
+      isActive: form.isActive,
+      rules: JSON.stringify(rulesJson),
+    };
+
     setSaving(true);
     setSaveError(null);
     try {
-      await onSave({
-        ...form,
-        priority: Number(form.priority) || 0,
-      });
+      await onSave(payload);
     } catch (err) {
       setSaveError(err.message || 'Failed to save recipe. Please try again.');
     } finally {
       setSaving(false);
     }
-  };
-
-  const insertVariable = (variable) => {
-    handleChange('destinationPathTemplate', form.destinationPathTemplate + variable);
   };
 
   return (
@@ -137,72 +117,6 @@ export default function RecipeModal({ recipe, onSave, onClose }) {
             {errors.name && <span id="recipe-name-error" className="field-error" role="alert">{errors.name}</span>}
           </div>
 
-          {/* Description */}
-          <div className="form-group">
-            <label htmlFor="recipe-desc">Description</label>
-            <textarea
-              id="recipe-desc"
-              value={form.description}
-              onChange={(e) => handleChange('description', e.target.value)}
-              placeholder="What does this recipe do?"
-              rows={2}
-            />
-          </div>
-
-          {/* File Type Pattern & Priority — side by side */}
-          <div className="form-row">
-            <div className="form-group form-group-flex">
-              <label htmlFor="recipe-filetype">File Type Pattern</label>
-              <input
-                id="recipe-filetype"
-                type="text"
-                value={form.fileTypePattern}
-                onChange={(e) => handleChange('fileTypePattern', e.target.value)}
-                placeholder="e.g., Invoice, Contract"
-              />
-            </div>
-            <div className="form-group form-group-small">
-              <label htmlFor="recipe-priority">Priority</label>
-              <input
-                id="recipe-priority"
-                type="number"
-                min="0"
-                value={form.priority}
-                onChange={(e) => handleChange('priority', e.target.value)}
-              />
-            </div>
-          </div>
-
-          {/* Destination Path Template */}
-          <div className="form-group">
-            <label htmlFor="recipe-dest">Destination Path Template</label>
-            <input
-              id="recipe-dest"
-              type="text"
-              value={form.destinationPathTemplate}
-              onChange={(e) => handleChange('destinationPathTemplate', e.target.value)}
-              placeholder="e.g., /Finance/Invoices/[Year]/[Month]/"
-            />
-            <div className="template-vars">
-              {TEMPLATE_VARS.map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  className="template-var-btn"
-                  onClick={() => insertVariable(v)}
-                >
-                  {v}
-                </button>
-              ))}
-            </div>
-            {pathPreview && (
-              <div className="path-preview">
-                <span className="path-preview-label">Preview:</span>
-                <code>{pathPreview}</code>
-              </div>
-            )}
-          </div>
-
           {/* Active Toggle */}
           <div className="form-group form-group-inline">
             <label htmlFor="recipe-active">Active</label>
@@ -218,18 +132,18 @@ export default function RecipeModal({ recipe, onSave, onClose }) {
             </button>
           </div>
 
-          {/* Rules JSON */}
+          {/* Instructions for AI */}
           <div className="form-group">
-            <label htmlFor="recipe-rules">Rules (JSON)</label>
+            <label htmlFor="recipe-rules">Instructions for the AI</label>
             <textarea
               id="recipe-rules"
               value={form.rules}
               onChange={(e) => handleChange('rules', e.target.value)}
               rows={4}
-              className={`rules-textarea${errors.rules ? ' input-error' : ''}`}
-              spellCheck="false"
+              className="rules-textarea"
+              placeholder={'e.g., If it\'s an invoice, move to /Finance\nIf it mentions Alpha, move to /Projects'}
             />
-            {errors.rules && <span className="field-error">{errors.rules}</span>}
+            <span className="form-hint">One instruction per line. The AI will use these to decide where to sort files.</span>
           </div>
 
           {/* Footer */}

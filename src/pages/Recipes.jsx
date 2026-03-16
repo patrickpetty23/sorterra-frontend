@@ -1,5 +1,21 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, Pencil, Trash2, ClipboardList, AlertCircle } from 'lucide-react';
+import { Plus, Pencil, Trash2, ClipboardList, AlertCircle, GripVertical } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { recipesApi } from '../api';
 import { useOrg } from '../contexts/OrgContext';
 import { useToast } from '../contexts/ToastContext';
@@ -8,17 +24,100 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import EmptyState from '../components/EmptyState';
 import './Recipes.css';
 
-const SORT_OPTIONS = [
-  { value: 'priority', label: 'Priority' },
-  { value: 'name', label: 'Name' },
-  { value: 'createdat', label: 'Date Created' },
-];
+const PRIORITY_STEP = 10;
 
-const FILTER_OPTIONS = [
-  { value: 'all', label: 'All Recipes' },
-  { value: 'active', label: 'Active' },
-  { value: 'inactive', label: 'Inactive' },
-];
+/** Parse recipe rules (JSON array of strings) into a single display string. */
+function getRulesPreview(rules) {
+  if (!rules) return '';
+  try {
+    const arr = typeof rules === 'string' ? JSON.parse(rules) : rules;
+    return Array.isArray(arr) ? arr.filter(Boolean).join(' · ') : String(rules);
+  } catch {
+    return typeof rules === 'string' ? rules : '';
+  }
+}
+
+/** Sortable table row for drag-and-drop reordering. */
+function SortableRecipeRow({ recipe, canDrag, onEdit, onDelete, onToggleActive }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: recipe.id, disabled: !canDrag });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <tr
+      ref={setNodeRef}
+      style={style}
+      className={`${!recipe.isActive ? 'row-inactive' : ''} ${isDragging ? 'recipe-row-dragging' : ''}`}
+    >
+      <td className="td-drag">
+        {canDrag ? (
+          <button
+            type="button"
+            className="drag-handle"
+            aria-label="Drag to reorder"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical size={18} />
+          </button>
+        ) : (
+          <span className="drag-handle-placeholder" aria-hidden="true" />
+        )}
+      </td>
+      <td>
+        <div className="recipe-name-cell">
+          <span className="recipe-name">{recipe.name}</span>
+        </div>
+      </td>
+      <td className="td-instructions">
+        <div className="recipe-instructions-cell" title={getRulesPreview(recipe.rules)}>
+          {getRulesPreview(recipe.rules) || '—'}
+        </div>
+      </td>
+      <td className="td-center">
+        <button
+          className={`toggle-btn${recipe.isActive ? ' toggle-active' : ''}`}
+          onClick={() => onToggleActive(recipe)}
+          role="switch"
+          aria-checked={recipe.isActive}
+          aria-label={`${recipe.name} active`}
+        >
+          <div className="toggle-track">
+            <div className="toggle-thumb" />
+          </div>
+        </button>
+      </td>
+      <td className="td-center">
+        <div className="row-actions">
+          <button
+            className="row-action-btn"
+            onClick={() => onEdit(recipe)}
+            aria-label="Edit recipe"
+          >
+            <Pencil size={16} />
+          </button>
+          <button
+            className="row-action-btn row-action-danger"
+            onClick={() => onDelete(recipe)}
+            aria-label="Delete recipe"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+}
 
 function Recipes() {
   const toast = useToast();
@@ -27,10 +126,6 @@ function Recipes() {
   const [recipes, setRecipes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [sortBy, setSortBy] = useState('priority');
-  const [searchTerm, setSearchTerm] = useState('');
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState(null);
@@ -85,9 +180,11 @@ function Recipes() {
       setRecipes((prev) => prev.map((r) => (r.id === editingRecipe.id ? updated : r)));
       toast.success(`"${updated.name}" updated`);
     } else {
+      const maxPriority = recipes.length ? Math.max(...recipes.map((r) => r.priority), 0) : -PRIORITY_STEP;
       const created = await recipesApi.create({
         ...formData,
         organizationId: organization?.id || null,
+        priority: maxPriority + PRIORITY_STEP,
       });
       setRecipes((prev) => [...prev, created]);
       toast.success(`"${created.name}" created`);
@@ -110,44 +207,51 @@ function Recipes() {
     }
   };
 
-  const filtered = useMemo(() => {
-    let result = [...recipes];
+  const canDrag = true;
 
-    // Filter by status
-    if (filterStatus === 'active') result = result.filter((r) => r.isActive);
-    else if (filterStatus === 'inactive') result = result.filter((r) => !r.isActive);
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
 
-    // Filter by search
-    if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase();
-      result = result.filter(
-        (r) =>
-          r.name.toLowerCase().includes(term) ||
-          (r.description || '').toLowerCase().includes(term) ||
-          (r.fileTypePattern || '').toLowerCase().includes(term)
-      );
-    }
+    const oldIndex = filtered.findIndex((r) => r.id === active.id);
+    const newIndex = filtered.findIndex((r) => r.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
 
-    // Sort
-    result.sort((a, b) => {
-      switch (sortBy) {
-        case 'name':
-          return a.name.localeCompare(b.name);
-        case 'createdat':
-          return new Date(b.createdAt) - new Date(a.createdAt);
-        case 'priority':
-        default:
-          return a.priority - b.priority;
-      }
+    const reordered = arrayMove(filtered, oldIndex, newIndex);
+    const updates = reordered.map((recipe, index) => ({
+      id: recipe.id,
+      priority: index * PRIORITY_STEP,
+    }));
+
+    setRecipes((prev) => {
+      const byId = new Map(prev.map((r) => [r.id, r]));
+      return reordered.map((r, i) => ({ ...byId.get(r.id), priority: i * PRIORITY_STEP }));
     });
 
+    try {
+      await recipesApi.updatePriorities(updates);
+      toast.success('Order saved');
+    } catch (err) {
+      toast.error(err.message || 'Failed to save order');
+      fetchRecipes();
+    }
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const filtered = useMemo(() => {
+    const result = [...recipes];
+    result.sort((a, b) => a.priority - b.priority);
     return result;
-  }, [recipes, filterStatus, sortBy, searchTerm]);
+  }, [recipes]);
 
   if (loading) {
     return (
       <div className="recipes-page">
-        <div className="recipes-toolbar card">
+        <div className="recipes-toolbar">
           <div className="skeleton skeleton-toolbar" />
         </div>
         <div className="recipes-table-wrapper card">
@@ -180,39 +284,8 @@ function Recipes() {
 
   return (
     <div className="recipes-page">
-      {/* Toolbar */}
-      <div className="recipes-toolbar card">
-        <div className="toolbar-left">
-          <div className="toolbar-search">
-            <Search size={16} color="#9CA3AF" />
-            <input
-              type="text"
-              placeholder="Search recipes..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <select
-            className="toolbar-select"
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            aria-label="Filter by status"
-          >
-            {FILTER_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-          <select
-            className="toolbar-select"
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            aria-label="Sort order"
-          >
-            {SORT_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>Sort: {opt.label}</option>
-            ))}
-          </select>
-        </div>
+      {/* Toolbar — button only, no card */}
+      <div className="recipes-toolbar">
         <button className="btn btn-primary toolbar-add-btn" onClick={openCreate}>
           <Plus size={18} />
           <span>New Recipe</span>
@@ -232,99 +305,54 @@ function Recipes() {
             />
           ) : (
             <EmptyState
-              icon={Search}
+              icon={ClipboardList}
               title="No matching recipes"
-              description="Try adjusting your filters or search term."
+              description="Try adjusting your filters."
             />
           )}
         </div>
       ) : (
         <div className="recipes-table-wrapper card">
-          <table className="recipes-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th className="col-pattern">File Type</th>
-                <th className="col-path">Destination</th>
-                <th className="th-center">Priority</th>
-                <th className="th-center">Files</th>
-                <th className="th-center">Active</th>
-                <th className="th-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((recipe) => (
-                <tr key={recipe.id} className={!recipe.isActive ? 'row-inactive' : ''}>
-                  <td>
-                    <div className="recipe-name-cell">
-                      <span className="recipe-name">{recipe.name}</span>
-                      {recipe.description && (
-                        <span className="recipe-desc">{recipe.description}</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="col-pattern">
-                    {recipe.fileTypePattern ? (
-                      <span className="recipe-badge">{recipe.fileTypePattern}</span>
-                    ) : (
-                      <span className="recipe-muted">Any</span>
-                    )}
-                  </td>
-                  <td className="col-path">
-                    {recipe.destinationPathTemplate ? (
-                      <code className="recipe-path">{recipe.destinationPathTemplate}</code>
-                    ) : (
-                      <span className="recipe-muted">—</span>
-                    )}
-                  </td>
-                  <td className="td-center">
-                    <span className="recipe-priority">{recipe.priority}</span>
-                  </td>
-                  <td className="td-center">
-                    <span className="recipe-files-count">{recipe.filesProcessedCount}</span>
-                  </td>
-                  <td className="td-center">
-                    <button
-                      className={`toggle-btn${recipe.isActive ? ' toggle-active' : ''}`}
-                      onClick={() => handleToggleActive(recipe)}
-                      role="switch"
-                      aria-checked={recipe.isActive}
-                      aria-label={`${recipe.name} active`}
-                    >
-                      <div className="toggle-track">
-                        <div className="toggle-thumb" />
-                      </div>
-                    </button>
-                  </td>
-                  <td className="td-center">
-                    <div className="row-actions">
-                      <button
-                        className="row-action-btn"
-                        onClick={() => openEdit(recipe)}
-                        aria-label="Edit recipe"
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      <button
-                        className="row-action-btn row-action-danger"
-                        onClick={() => setDeletingRecipe(recipe)}
-                        aria-label="Delete recipe"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <table className="recipes-table">
+              <thead>
+                <tr>
+                  <th className="th-drag" aria-label="Reorder" />
+                  <th>Name</th>
+                  <th className="th-instructions">Instructions for AI</th>
+                  <th className="th-center">Active</th>
+                  <th className="th-center">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <SortableContext
+                items={filtered.map((r) => r.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <tbody>
+                  {filtered.map((recipe) => (
+                    <SortableRecipeRow
+                      key={recipe.id}
+                      recipe={recipe}
+                      canDrag={canDrag}
+                      onEdit={openEdit}
+                      onDelete={setDeletingRecipe}
+                      onToggleActive={handleToggleActive}
+                    />
+                  ))}
+                </tbody>
+              </SortableContext>
+            </table>
+          </DndContext>
         </div>
       )}
 
       {/* Summary */}
       <div className="recipes-summary">
-        {filtered.length} of {recipes.length} recipe{recipes.length !== 1 ? 's' : ''}
-        {filterStatus !== 'all' && ` (${filterStatus})`}
+        {filtered.length} recipe{recipes.length !== 1 ? 's' : ''}
       </div>
 
       {/* Create/Edit Modal */}
