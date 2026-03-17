@@ -1,10 +1,9 @@
-import { createContext, useContext, useState, useEffect } from 'react';
-import { useAuth } from './AuthContext';
+import { useState, useEffect } from 'react';
+import { useAuth } from './useAuth';
 import { usersApi } from '../api/users';
 import { userOrganizationsApi } from '../api/userOrganizations';
 import { organizationsApi } from '../api';
-
-const OrgContext = createContext(null);
+import { OrgContext } from './useOrg';
 
 export function OrgProvider({ children }) {
   const { user, isAuthenticated } = useAuth();
@@ -63,8 +62,3 @@ export function OrgProvider({ children }) {
   );
 }
 
-export const useOrg = () => {
-  const ctx = useContext(OrgContext);
-  if (!ctx) throw new Error('useOrg must be used within OrgProvider');
-  return ctx;
-};

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, CheckCircle, AlertCircle, Loader } from 'lucide-react';
 import { sortApi } from '../api/sort';
-import { useToast } from '../contexts/ToastContext';
+import { useToast } from '../contexts/useToast';
 import useFocusTrap from '../hooks/useFocusTrap';
 import './RecipeModal.css';
 

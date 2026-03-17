@@ -26,7 +26,7 @@ React-based frontend for **Sorterra**, an AI-powered file sorting and management
 - **Processed Files** — Browse all files handled by the system with status tracking, confidence scores, classified types, extracted metadata, and expandable detail rows
 - **Settings** — User profile management, organization configuration with team member roles (Owner/Admin/Member), and SharePoint connection management
 - **Semantic Search** — Natural language search bar with query history and example prompts
-- **SharePoint Integration** — Connect and manage SharePoint sites with status monitoring and sync tracking
+- **SharePoint Integration** — Connect SharePoint sites via Azure AD admin consent (Microsoft authorization flow), manage connections with status monitoring and sync tracking
 
 ## Tech Stack
 
@@ -100,12 +100,15 @@ sorterra-frontend/
 │   │   ├── processedFiles.js      # Processed file tracking
 │   │   ├── userOrganizations.js   # User-organization membership
 │   │   ├── sharePointConnections.js # SharePoint site connections
+│   │   ├── sharePointAuth.js      # Admin consent flow (get consent URL)
+│   │   ├── sort.js                # Trigger file sorting
 │   │   └── index.js               # Barrel exports
 │   ├── components/                # Reusable UI components
 │   │   ├── DashboardLayout.jsx    # Main app shell (sidebar, header, content area)
 │   │   ├── ProtectedRoute.jsx     # Auth guard — redirects unauthenticated users
 │   │   ├── RecipeModal.jsx        # Create/edit sorting recipe modal
-│   │   ├── ConnectionModal.jsx    # Add SharePoint connection modal
+│   │   ├── ConnectionModal.jsx    # Add SharePoint connection + Microsoft consent redirect
+│   │   ├── SortModal.jsx          # Trigger file sorting with recipe selection and progress
 │   │   ├── Toast.jsx              # Notification toasts (success/error/warning/info)
 │   │   ├── ConfirmDialog.jsx      # Confirmation dialog for destructive actions
 │   │   ├── EmptyState.jsx         # Placeholder for empty data states
@@ -193,6 +196,8 @@ The frontend communicates with the Sorterra API through a centralized HTTP clien
 | `userOrganizationsApi`     | Memberships               | CRUD, lookup by user ID                        |
 | `recipesApi`               | Sorting Recipes           | CRUD with filters (orgId, isActive, orderBy)   |
 | `sharePointConnectionsApi` | SharePoint Connections    | CRUD                                           |
+| `sharePointAuthApi`        | SharePoint Auth           | Get admin consent URL                          |
+| `sortApi`                  | Sort                      | Trigger file sorting                           |
 | `processedFilesApi`        | Processed Files           | CRUD                                           |
 | `activityApi`              | Activity Logs             | CRUD, recent by organization                   |
 | `searchApi`                | Search Queries            | search, history, update results, track clicks  |
@@ -220,7 +225,8 @@ All authenticated routes are wrapped in `ProtectedRoute`, which redirects to `/l
 
 ### Modals & Dialogs
 - **`RecipeModal`** — Form for creating/editing sorting recipes with template variable insertion buttons (`[Year]`, `[Month]`, `[Day]`, `[Type]`, `[Department]`) and live path preview
-- **`ConnectionModal`** — Form for adding new SharePoint connections (site URL, tenant ID, source folder)
+- **`ConnectionModal`** — Form for adding new SharePoint connections (site URL, source folder) with automatic redirect to Microsoft admin consent flow
+- **`SortModal`** — Trigger file sorting on a connection with recipe selection, folder path input, and real-time progress/results display
 - **`ConfirmDialog`** — Generic confirmation dialog for destructive actions (delete recipe, remove member, etc.)
 
 ### Feedback

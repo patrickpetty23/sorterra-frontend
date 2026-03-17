@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, ClipboardList, FileText, Settings, LogOut, Menu, X } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
-import { useOrg } from '../contexts/OrgContext';
+import { useAuth } from '../contexts/useAuth';
+import { useOrg } from '../contexts/useOrg';
 import '../pages/Dashboard.css';
 
 const NAV_ITEMS = [
@@ -29,8 +29,9 @@ export default function DashboardLayout() {
   const { organization, orgRole, loading: orgLoading } = useOrg();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Close sidebar on route change
+  // Close sidebar on route change (mobile only)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: close mobile sidebar on navigation
     setSidebarOpen(false);
   }, [location.pathname]);
 

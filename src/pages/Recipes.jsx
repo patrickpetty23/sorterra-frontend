@@ -17,8 +17,8 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { recipesApi } from '../api';
-import { useOrg } from '../contexts/OrgContext';
-import { useToast } from '../contexts/ToastContext';
+import { useOrg } from '../contexts/useOrg';
+import { useToast } from '../contexts/useToast';
 import RecipeModal from '../components/RecipeModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import EmptyState from '../components/EmptyState';

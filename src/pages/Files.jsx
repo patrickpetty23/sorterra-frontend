@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Search, FileText, ChevronDown, ChevronRight, AlertCircle } from 'lucide-react';
 import { processedFilesApi } from '../api';
-import { useToast } from '../contexts/ToastContext';
 import EmptyState from '../components/EmptyState';
 import './Files.css';
 
@@ -44,8 +43,6 @@ function formatConfidence(value) {
 }
 
 function Files() {
-  const toast = useToast();
-
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

@@ -1,15 +1,6 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import Toast from '../components/Toast';
-
-const ToastContext = createContext(null);
-
-export function useToast() {
-  const context = useContext(ToastContext);
-  if (!context) {
-    throw new Error('useToast must be used within a ToastProvider');
-  }
-  return context;
-}
+import { ToastContext } from './useToast';
 
 let toastId = 0;
 
