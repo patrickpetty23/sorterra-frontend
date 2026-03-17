@@ -32,7 +32,27 @@ export function OrgProvider({ children }) {
 
         // 2. Get user's organization memberships
         const memberships = await userOrganizationsApi.getByUserId(dbUser.id);
-        if (cancelled || memberships.length === 0) {
+        if (cancelled) { setLoading(false); return; }
+
+        if (memberships.length === 0) {
+          // Auto-provision org for existing users who don't have one
+          try {
+            const orgName = dbUser.displayName
+              ? `${dbUser.displayName}'s Organization`
+              : `${dbUser.email.split('@')[0]}'s Organization`;
+            const newOrg = await organizationsApi.create({ name: orgName });
+            await userOrganizationsApi.create({
+              userId: dbUser.id,
+              organizationId: newOrg.id,
+              role: 'owner',
+            });
+            if (!cancelled) {
+              setOrganization(newOrg);
+              setOrgRole('owner');
+            }
+          } catch {
+            // Failed to auto-provision; user will see "no organization" state
+          }
           setLoading(false);
           return;
         }

@@ -180,10 +180,14 @@ function Recipes() {
       setRecipes((prev) => prev.map((r) => (r.id === editingRecipe.id ? updated : r)));
       toast.success(`"${updated.name}" updated`);
     } else {
+      if (!organization?.id) {
+        toast.error('Organization not loaded yet. Please wait and try again.');
+        return;
+      }
       const maxPriority = recipes.length ? Math.max(...recipes.map((r) => r.priority), 0) : -PRIORITY_STEP;
       const created = await recipesApi.create({
         ...formData,
-        organizationId: organization?.id || null,
+        organizationId: organization.id,
         priority: maxPriority + PRIORITY_STEP,
       });
       setRecipes((prev) => [...prev, created]);

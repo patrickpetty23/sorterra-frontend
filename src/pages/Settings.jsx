@@ -241,6 +241,10 @@ function Settings() {
   };
 
   const handleAddConnection = async (formData) => {
+    if (!organization?.id) {
+      toast.error('Organization not loaded yet. Please wait and try again.');
+      return;
+    }
     const created = await sharePointConnectionsApi.create({
       ...formData,
       organizationId: organization?.id || null,
