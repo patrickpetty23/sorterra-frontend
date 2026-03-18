@@ -53,6 +53,7 @@ export default function ConnectionModal({ onSave, onClose }) {
         siteUrl: form.siteUrl.trim(),
         sourceFolder: form.sourceFolder.trim() || null,
       });
+      if (!created) return; // onSave returned early (e.g., org not loaded)
       // Initiate admin consent flow — redirect to Microsoft
       const { consentUrl } = await sharePointAuthApi.getConsentUrl(created.id);
       window.location.href = consentUrl;

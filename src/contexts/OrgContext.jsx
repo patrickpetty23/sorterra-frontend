@@ -24,10 +24,16 @@ export function OrgProvider({ children }) {
     async function fetchOrg() {
       try {
         // 1. Find DB user by Cognito sub
-        const dbUser = await usersApi.getByCognitoSub(user.sub);
-        if (cancelled || !dbUser) {
-          setLoading(false);
-          return;
+        let dbUser = await usersApi.getByCognitoSub(user.sub);
+        if (cancelled) { setLoading(false); return; }
+
+        // If user doesn't exist in DB yet, wait briefly and retry
+        // (handles race with Register.jsx's POST /api/users)
+        if (!dbUser) {
+          await new Promise((r) => setTimeout(r, 1500));
+          if (cancelled) { setLoading(false); return; }
+          dbUser = await usersApi.getByCognitoSub(user.sub);
+          if (cancelled || !dbUser) { setLoading(false); return; }
         }
 
         // 2. Get user's organization memberships
@@ -50,8 +56,8 @@ export function OrgProvider({ children }) {
               setOrganization(newOrg);
               setOrgRole('owner');
             }
-          } catch {
-            // Failed to auto-provision; user will see "no organization" state
+          } catch (err) {
+            console.error('[OrgContext] Failed to auto-provision org:', err);
           }
           setLoading(false);
           return;
@@ -64,8 +70,8 @@ export function OrgProvider({ children }) {
 
         setOrganization(org);
         setOrgRole(membership.role);
-      } catch {
-        // Org fetch is non-critical; sidebar will show fallback
+      } catch (err) {
+        console.error('[OrgContext] Failed to load organization:', err);
       } finally {
         if (!cancelled) setLoading(false);
       }
