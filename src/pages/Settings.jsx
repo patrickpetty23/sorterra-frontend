@@ -6,7 +6,6 @@ import { useAuth } from '../contexts/useAuth';
 import { useOrg } from '../contexts/useOrg';
 import { useToast } from '../contexts/useToast';
 import ConnectionModal from '../components/ConnectionModal';
-import SortModal from '../components/SortModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import EmptyState from '../components/EmptyState';
 import './Settings.css';
@@ -50,7 +49,6 @@ function Settings() {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [deletingConnection, setDeletingConnection] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [sortingConnection, setSortingConnection] = useState(null);
 
   useEffect(() => {
     if (!user?.sub) return;
@@ -548,15 +546,6 @@ function Settings() {
                       <span className="connection-url">{conn.siteUrl}</span>
                     </div>
                     <button
-                      className="btn btn-primary btn-sm"
-                      onClick={() => setSortingConnection(conn)}
-                      disabled={conn.connectionStatus === 'pending' || conn.connectionStatus === 'error'}
-                      aria-label="Sort files"
-                    >
-                      <Play size={14} />
-                      <span>Sort Now</span>
-                    </button>
-                    <button
                       className="row-action-btn row-action-danger"
                       onClick={() => setDeletingConnection(conn)}
                       aria-label="Remove connection"
@@ -617,15 +606,6 @@ function Settings() {
           loading={removeMemberLoading}
           onConfirm={handleRemoveMember}
           onCancel={() => setRemovingMember(null)}
-        />
-      )}
-
-      {/* Sort Modal */}
-      {sortingConnection && (
-        <SortModal
-          connection={sortingConnection}
-          onSortComplete={fetchConnections}
-          onClose={() => setSortingConnection(null)}
         />
       )}
 
