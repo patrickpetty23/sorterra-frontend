@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { FileText, ClipboardList, Globe, Inbox, TrendingUp, CheckCircle, BarChart2 } from 'lucide-react';
+import { FileText, ClipboardList, Globe, Inbox, TrendingUp, CheckCircle, BarChart2, Play, CircleDot } from 'lucide-react';
 import { activityApi, recipesApi, processedFilesApi, sharePointConnectionsApi } from '../api';
 import EmptyState from '../components/EmptyState';
+import SortModal from '../components/SortModal';
 
 const ACTIVITY_COLORS = {
   file_sorted: 'blue',
@@ -42,6 +43,8 @@ function Dashboard() {
   const [recentActivity, setRecentActivity] = useState([]);
   const [activityLoading, setActivityLoading] = useState(true);
   const [activityError, setActivityError] = useState(null);
+
+  const [sortingConnection, setSortingConnection] = useState(null);
 
   // Sorting stats filter
   const [sortingFilter, setSortingFilter] = useState('all');
@@ -90,7 +93,7 @@ function Dashboard() {
         if (cancelled) return;
         const sorted = logs
           .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-          .slice(0, 10);
+          .slice(0, 5);
         setRecentActivity(sorted);
       } catch (err) {
         if (!cancelled) setActivityError(err.message);
@@ -122,12 +125,77 @@ function Dashboard() {
   const totalSorted = filteredFiles.filter((f) => f.status === 'success').length;
 
   const sortRuns = recentActivity.filter((a) => a.activityType === 'sort_completed');
-  const avgFilesPerRun = sortRuns.length === 0 ? 0 : (
-    sortRuns.reduce((sum, run) => {
+
+  const filteredSortRuns = (() => {
+    if (!sortRuns.length) return [];
+    const now = new Date();
+
+    return sortRuns.filter((run) => {
+      const date = new Date(run.createdAt);
+      if (sortingFilter === 'day') {
+        const today = new Date(now); today.setHours(0, 0, 0, 0);
+        return date >= today;
+      }
+      if (sortingFilter === 'month') {
+        return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
+      }
+      return true; // 'all'
+    });
+  })();
+
+  const avgFilesPerRun = filteredSortRuns.length === 0 ? 0 : (
+    filteredSortRuns.reduce((sum, run) => {
       const match = run.description?.match(/(\d+)\/(\d+)/);
       return sum + (match ? parseInt(match[1], 10) : 0);
-    }, 0) / sortRuns.length
+    }, 0) / filteredSortRuns.length
   ).toFixed(1);
+
+  // Aggregate stats from sort_completed metadata where available
+  const aggregateTokenAndDurationStats = () => {
+    if (!filteredSortRuns.length) {
+      return {
+        totalTokens: null,
+        avgTokensPerRun: null,
+        avgDurationMs: null,
+      };
+    }
+
+    let totalTokens = 0;
+    let totalDuration = 0;
+    let runsWithStats = 0;
+
+    for (const run of filteredSortRuns) {
+      if (!run.metadata) continue;
+      try {
+        const meta = JSON.parse(run.metadata);
+        const tokens = typeof meta.tokensConsumed === 'number' ? meta.tokensConsumed : null;
+        const duration = typeof meta.durationMs === 'number' ? meta.durationMs : null;
+        if (tokens !== null || duration !== null) {
+          runsWithStats += 1;
+          if (tokens !== null) totalTokens += tokens;
+          if (duration !== null) totalDuration += duration;
+        }
+      } catch {
+        // ignore malformed metadata
+      }
+    }
+
+    if (!runsWithStats) {
+      return {
+        totalTokens: null,
+        avgTokensPerRun: null,
+        avgDurationMs: null,
+      };
+    }
+
+    return {
+      totalTokens,
+      avgTokensPerRun: (totalTokens / runsWithStats).toFixed(0),
+      avgDurationMs: (totalDuration / runsWithStats).toFixed(0),
+    };
+  };
+
+  const { totalTokens, avgTokensPerRun, avgDurationMs } = aggregateTokenAndDurationStats();
 
   const successRate = allProcessedFiles.length === 0 ? null : (
     (allProcessedFiles.filter((f) => f.status === 'success').length / allProcessedFiles.length) * 100
@@ -170,23 +238,29 @@ function Dashboard() {
                 <div className="stat-sub">{stats.recipesTotal} total</div>
               </div>
             </div>
-            <div className="card stat-card">
-              <div className="stat-icon-wrapper stat-icon-purple" aria-hidden="true">
-                <Globe size={22} />
-              </div>
-              <div className="stat-info">
-                <div className="stat-value" style={{ fontSize: stats.siteConnection ? '1.1rem' : undefined }}>
-                  {stats.siteConnection
-                    ? stats.siteConnection.connectionStatus === 'connected' ? 'Connected' : 'Not Connected'
-                    : 'No site configured'}
+            <div className="card stat-card" style={{ flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
+                <div className="stat-icon-wrapper stat-icon-purple" aria-hidden="true">
+                  <Globe size={22} />
                 </div>
-                <div className="stat-label">SharePoint site</div>
-                {stats.siteConnection?.siteUrl && (
-                  <div className="stat-sub" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {stats.siteConnection.siteUrl}
+                <div className="stat-info" style={{ flex: 1 }}>
+                  <div className="stat-label" style={{ marginBottom: '2px' }}>SharePoint connection</div>
+                  <div className="stat-sub" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '200px' }}>
+                    {stats.siteConnection?.siteUrl || 'No site configured'}
                   </div>
-                )}
+                </div>
               </div>
+              {stats.siteConnection && (
+                <button
+                  className="btn btn-primary"
+                  style={{ width: '100%', marginTop: '4px', justifyContent: 'center' }}
+                  onClick={() => setSortingConnection(stats.siteConnection)}
+                  disabled={stats.siteConnection.connectionStatus === 'pending' || stats.siteConnection.connectionStatus === 'error'}
+                >
+                  <Play size={14} style={{ marginRight: '6px' }} />
+                  <span>Sort Now</span>
+                </button>
+              )}
             </div>
           </>
         )}
@@ -279,33 +353,43 @@ function Dashboard() {
               </div>
               <div className="sorting-stat-value">{activityLoading ? '—' : avgFilesPerRun}</div>
               <div className="sorting-stat-label">Avg Files / Sort Run</div>
-              <div className="sorting-stat-sub">{sortRuns.length} run{sortRuns.length !== 1 ? 's' : ''} total</div>
+              <div className="sorting-stat-sub">{filteredSortRuns.length} run{filteredSortRuns.length !== 1 ? 's' : ''} total</div>
             </div>
 
-            {/* Card 3 — Success Rate */}
+            {/* Card 3 — Agent Tokens & Duration */}
             <div className="sorting-stat-card">
               <div className="sorting-stat-header">
                 <div className="sorting-stat-icon-wrap sorting-icon-purple">
-                  <CheckCircle size={18} />
+                  <CircleDot size={18} />
                 </div>
               </div>
               <div className="sorting-stat-value">
-                {statsLoading ? '—' : successRate === null ? 'N/A' : `${successRate}%`}
+                {activityLoading ? '—' : (totalTokens === null ? 'N/A' : totalTokens.toLocaleString())}
               </div>
-              <div className="sorting-stat-label">Success Rate</div>
-              {successRate !== null && (
-                <div className="success-rate-bar-track">
-                  <div
-                    className="success-rate-bar-fill"
-                    style={{ width: `${successRate}%` }}
-                  />
-                </div>
-              )}
+              <div className="sorting-stat-label">Total Tokens Consumed</div>
+              <div className="sorting-stat-sub">
+                {activityLoading || avgTokensPerRun === null
+                  ? 'Avg per run: N/A'
+                  : `Avg per run: ${avgTokensPerRun.toLocaleString()}`}
+              </div>
+              <div className="sorting-stat-sub">
+                {activityLoading || avgDurationMs === null
+                  ? 'Avg duration: N/A'
+                  : `Avg duration: ${(avgDurationMs / 1000).toFixed(1)}s`}
+              </div>
             </div>
 
           </div>
         </div>
       </div>
+
+      {sortingConnection && (
+        <SortModal
+          connection={sortingConnection}
+          onSortComplete={() => window.location.reload()}
+          onClose={() => setSortingConnection(null)}
+        />
+      )}
     </>
   );
 }
