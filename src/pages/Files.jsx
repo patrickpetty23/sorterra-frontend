@@ -43,49 +43,7 @@ function Files() {
     setLoading(true);
     setError(null);
     try {
-      // Temporarily injecting mock data for UI testing
-      // const data = await processedFilesApi.getAll();
-      
-      const data = [
-        {
-          id: 'mock-1',
-          originalName: 'IS 515 Syllabus--Winter 2026-v2 (2).pdf',
-          fileExtension: '.pdf',
-          status: 'pending',
-          newPath: '**✓ Done** **File:** IS 515 Syllabus--Winter 2026-v2.pdf **Destination:** `/sites/sorterratesting/Shared Documents/School/IS 515/` **Actions taken:** 1. Cleaned filename (removed duplicate version suffix) 2. Created subject subfolder "IS 515" under School 3. Moved syllabus to School/IS 515 **Reason:** This is a course syllabus for IS 515, matching the [School] recipe rule for class-related documents sorted by subject.',
-          processedAt: '2026-03-19T20:30:00Z',
-          createdAt: '2026-03-19T20:30:00Z'
-        },
-        {
-          id: 'mock-2',
-          originalName: 'Redo_AEO_Strategy_Report_Formal.pdf',
-          fileExtension: '.pdf',
-          status: 'pending',
-          newPath: '**✓ Sorted successfully** **File:** Redo_AEO_Strategy_Report_Formal.pdf **Destination:** `/sites/sorterratesting/Shared Documents/Technical/Strategy/` **Reason:** This is a formal strategy report (AEO Strategy Report), which qualifies as a technical/analytical document. Sorted into Technical with a new "Strategy" subfolder to organize strategic analysis documents.',
-          processedAt: '2026-03-19T20:30:00Z',
-          createdAt: '2026-03-19T20:30:00Z'
-        },
-        {
-          id: 'mock-3',
-          originalName: 'Final_Exam_Practice_1.docx',
-          fileExtension: '.docx',
-          status: 'pending',
-          newPath: '**✓ Done** **Final_Exam_Practice_1.docx** → `/User_test/Technical/Python/` **Why:** Despite the misleading filename, the document contains a Python package installation error log (spacy NLP model deployment issue). Applied the **Technical recipe** and sorted into a Python subfolder based on the technical topic.',
-          processedAt: '2026-03-19T20:27:00Z',
-          createdAt: '2026-03-19T20:27:00Z'
-        },
-        {
-          id: 'mock-4',
-          originalName: 'PDF_Loader_Comp (1).pdf',
-          fileExtension: '.pdf',
-          status: 'pending',
-          newPath: '**✓ Done** **File:** PDF_Loader_Comp.pdf **Moved to:** `/sites/sorterratesting/Shared Documents/Technical/PDF Processing/` **Actions taken:** 1. Renamed file to remove "(1)" suffix 2. Created new **Technical** folder (blue tag) with **PDF Processing** subfolder 3. Moved document to Technical/PDF Processing **Reason:** The document name suggests it\'s a technical document related to PDF loading/comparison functionality, matching the [Technical] sorting rule for technical documents organized by topic.',
-          processedAt: '2026-03-19T20:27:00Z',
-          createdAt: '2026-03-19T20:27:00Z'
-        }
-      ];
-      
-      await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
+      const data = await processedFilesApi.getAll();
       setFiles(data);
     } catch (err) {
       setError(err.message);
