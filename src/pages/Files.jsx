@@ -4,20 +4,7 @@ import { processedFilesApi } from '../api';
 import EmptyState from '../components/EmptyState';
 import './Files.css';
 
-const STATUS_CONFIG = {
-  completed: { label: 'Completed', className: 'file-status-completed' },
-  pending: { label: 'Pending', className: 'file-status-pending' },
-  processing: { label: 'Processing', className: 'file-status-processing' },
-  failed: { label: 'Failed', className: 'file-status-failed' },
-};
 
-const STATUS_FILTER_OPTIONS = [
-  { value: 'all', label: 'All Statuses' },
-  { value: 'completed', label: 'Completed' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'processing', label: 'Processing' },
-  { value: 'failed', label: 'Failed' },
-];
 
 function formatDate(dateString) {
   if (!dateString) return '—';
@@ -30,16 +17,13 @@ function formatDate(dateString) {
   });
 }
 
-function formatFileSize(bytes) {
-  if (!bytes) return '—';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
 
-function formatConfidence(value) {
-  if (value == null) return '—';
-  return `${(value * 100).toFixed(0)}%`;
+
+function parseDestination(raw) {
+  if (!raw) return '—';
+  // Safely grab the first path enclosed in backticks (paths starting with a slash)
+  const match = raw.match(/`(\/[^`]+)`/);
+  return match && match[1] ? match[1].trim() : raw;
 }
 
 function Files() {
@@ -48,8 +32,7 @@ function Files() {
   const [error, setError] = useState(null);
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [typeFilter, setTypeFilter] = useState('all');
+
   const [expandedId, setExpandedId] = useState(null);
 
   useEffect(() => {
@@ -69,21 +52,8 @@ function Files() {
     }
   }
 
-  const classifiedTypes = useMemo(() => {
-    const types = new Set(files.map((f) => f.classifiedType).filter(Boolean));
-    return ['all', ...Array.from(types).sort()];
-  }, [files]);
-
   const filtered = useMemo(() => {
     let result = [...files];
-
-    if (statusFilter !== 'all') {
-      result = result.filter((f) => f.status === statusFilter);
-    }
-
-    if (typeFilter !== 'all') {
-      result = result.filter((f) => f.classifiedType === typeFilter);
-    }
 
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
@@ -99,20 +69,13 @@ function Files() {
     result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     return result;
-  }, [files, statusFilter, typeFilter, searchTerm]);
+  }, [files, searchTerm]);
 
   const toggleExpand = (id) => {
     setExpandedId((prev) => (prev === id ? null : id));
   };
 
-  const parseMetadata = (raw) => {
-    try {
-      const parsed = JSON.parse(raw);
-      return JSON.stringify(parsed, null, 2);
-    } catch {
-      return raw || '{}';
-    }
-  };
+
 
   if (loading) {
     return (
@@ -162,30 +125,7 @@ function Files() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <select
-            className="toolbar-select"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            aria-label="Filter by status"
-          >
-            {STATUS_FILTER_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-          {classifiedTypes.length > 1 && (
-            <select
-              className="toolbar-select"
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              aria-label="Filter by type"
-            >
-              {classifiedTypes.map((t) => (
-                <option key={t} value={t}>
-                  {t === 'all' ? 'All Types' : t}
-                </option>
-              ))}
-            </select>
-          )}
+
         </div>
       </div>
 
@@ -213,16 +153,14 @@ function Files() {
               <tr>
                 <th style={{ width: 32 }}></th>
                 <th>File</th>
-                <th>Status</th>
-                <th>Type</th>
-                <th className="th-center col-confidence">Confidence</th>
+
                 <th className="col-path">Destination</th>
                 <th>Processed</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((file) => {
-                const sc = STATUS_CONFIG[file.status] || STATUS_CONFIG.pending;
+
                 const isExpanded = expandedId === file.id;
                 return (
                   <>
@@ -249,22 +187,10 @@ function Files() {
                           )}
                         </div>
                       </td>
-                      <td>
-                        <span className={`file-status-badge ${sc.className}`}>{sc.label}</span>
-                      </td>
-                      <td>
-                        {file.classifiedType ? (
-                          <span className="file-type-badge">{file.classifiedType}</span>
-                        ) : (
-                          <span className="file-muted">—</span>
-                        )}
-                      </td>
-                      <td className="td-center col-confidence">
-                        <span className="file-confidence">{formatConfidence(file.classificationConfidence)}</span>
-                      </td>
+
                       <td className="col-path">
                         {file.newPath ? (
-                          <code className="file-path">{file.newPath}</code>
+                          <code className="file-path">{parseDestination(file.newPath)}</code>
                         ) : (
                           <span className="file-muted">—</span>
                         )}
@@ -275,46 +201,24 @@ function Files() {
                     </tr>
                     {isExpanded && (
                       <tr key={`${file.id}-detail`} className="file-detail-row">
-                        <td colSpan={7}>
+                        <td colSpan={4}>
                           <div className="file-detail">
-                            <div className="file-detail-grid">
-                              <div className="detail-item">
-                                <span className="detail-label">Original Path</span>
-                                <span className="detail-value">{file.originalPath || '—'}</span>
-                              </div>
-                              <div className="detail-item">
-                                <span className="detail-label">New Path</span>
-                                <span className="detail-value">{file.newPath || '—'}</span>
-                              </div>
-                              <div className="detail-item">
-                                <span className="detail-label">File Size</span>
-                                <span className="detail-value">{formatFileSize(file.fileSizeBytes)}</span>
-                              </div>
-                              <div className="detail-item">
-                                <span className="detail-label">MIME Type</span>
-                                <span className="detail-value">{file.mimeType || '—'}</span>
-                              </div>
-                              <div className="detail-item">
-                                <span className="detail-label">Created</span>
-                                <span className="detail-value">{formatDate(file.createdAt)}</span>
-                              </div>
-                              {file.appliedRecipeId && (
-                                <div className="detail-item">
-                                  <span className="detail-label">Recipe ID</span>
-                                  <span className="detail-value detail-mono">{file.appliedRecipeId}</span>
-                                </div>
-                              )}
-                            </div>
                             {file.errorMessage && (
-                              <div className="file-detail-error">
+                              <div className="file-detail-error" style={{ marginBottom: '1rem' }}>
                                 <AlertCircle size={14} />
                                 <span>{file.errorMessage}</span>
                               </div>
                             )}
-                            <div className="file-detail-meta">
-                              <span className="detail-label">Extracted Metadata</span>
-                              <pre className="meta-json">{parseMetadata(file.extractedMetadata)}</pre>
-                            </div>
+                            {file.newPath ? (
+                              <div className="file-detail-meta">
+                                <span className="detail-label">Agent Output</span>
+                                <pre className="meta-json" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', margin: 0 }}>
+                                  {file.newPath}
+                                </pre>
+                              </div>
+                            ) : (
+                              <div className="file-muted">No agent output recorded</div>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -330,7 +234,7 @@ function Files() {
       {/* Summary */}
       <div className="files-summary">
         {filtered.length} of {files.length} file{files.length !== 1 ? 's' : ''}
-        {statusFilter !== 'all' && ` (${statusFilter})`}
+
       </div>
     </div>
   );
