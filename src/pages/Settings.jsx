@@ -56,8 +56,10 @@ function Settings() {
 
     async function fetchProfile() {
       try {
-        const found = await usersApi.getByCognitoSub(user.sub);
-        if (cancelled || !found) {
+        const profile = await usersApi.getMe();
+        if (cancelled) return;
+        const found = profile.user;
+        if (!found) {
           setProfileLoading(false);
           return;
         }

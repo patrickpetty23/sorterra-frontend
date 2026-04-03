@@ -17,6 +17,10 @@ export const usersApi = {
     return await apiClient.put(`/api/users/${id}`, data);
   },
 
+  async getMe() {
+    return await apiClient.get('/api/users/me');
+  },
+
   async getByCognitoSub(cognitoSub) {
     const users = await this.getAll();
     return users.find((u) => u.cognitoSub === cognitoSub) || null;

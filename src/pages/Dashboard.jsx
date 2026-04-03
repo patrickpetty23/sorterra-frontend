@@ -36,11 +36,12 @@ function formatActivityType(activityType) {
 }
 
 function Dashboard() {
-  const [stats, setStats] = useState({ filesProcessed: 0, activeRecipes: 0, connectedSites: 0 });
+  const [stats, setStats] = useState({ uniqueFiles: 0, activeRecipes: 0, connectedSites: 0 });
   const [statsLoading, setStatsLoading] = useState(true);
   const [allProcessedFiles, setAllProcessedFiles] = useState([]);
 
   const [recentActivity, setRecentActivity] = useState([]);
+  const [allActivity, setAllActivity] = useState([]);
   const [activityLoading, setActivityLoading] = useState(true);
   const [activityError, setActivityError] = useState(null);
 
@@ -61,14 +62,9 @@ function Dashboard() {
         ]);
         if (cancelled) return;
 
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const filesToday = files.filter((f) => new Date(f.processedAt || f.createdAt) >= today);
-
         setAllProcessedFiles(files);
         setStats({
-          filesProcessed: filesToday.length,
-          filesTotal: files.length,
+          uniqueFiles: files.length,
           activeRecipes: recipes.filter((r) => r.isActive).length,
           recipesTotal: recipes.length,
           siteConnection: connections[0] ?? null,
@@ -91,10 +87,9 @@ function Dashboard() {
       try {
         const logs = await activityApi.getAll();
         if (cancelled) return;
-        const sorted = logs
-          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-          .slice(0, 5);
-        setRecentActivity(sorted);
+        const sorted = logs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        setAllActivity(sorted);
+        setRecentActivity(sorted.slice(0, 5));
       } catch (err) {
         if (!cancelled) setActivityError(err.message);
       } finally {
@@ -107,24 +102,7 @@ function Dashboard() {
   }, []);
 
   // ── Derived sorting stats ──────────────────────────────────────────────
-  const filteredFiles = (() => {
-    const now = new Date();
-    return allProcessedFiles.filter((f) => {
-      const date = new Date(f.processedAt || f.createdAt);
-      if (sortingFilter === 'day') {
-        const today = new Date(now); today.setHours(0, 0, 0, 0);
-        return date >= today;
-      }
-      if (sortingFilter === 'month') {
-        return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
-      }
-      return true; // 'all'
-    });
-  })();
-
-  const totalSorted = filteredFiles.filter((f) => f.status === 'success').length;
-
-  const sortRuns = recentActivity.filter((a) => a.activityType === 'sort_completed');
+  const sortRuns = allActivity.filter((a) => a.activityType === 'sort_completed');
 
   const filteredSortRuns = (() => {
     if (!sortRuns.length) return [];
@@ -142,6 +120,15 @@ function Dashboard() {
       return true; // 'all'
     });
   })();
+
+  const totalSorted = filteredSortRuns.reduce((sum, run) => {
+    try {
+      const meta = run.metadata ? JSON.parse(run.metadata) : null;
+      if (meta && typeof meta.filesSorted === 'number') return sum + meta.filesSorted;
+    } catch { /* ignore */ }
+    const match = run.description?.match(/(\d+)\/(\d+)/);
+    return sum + (match ? parseInt(match[1], 10) : 0);
+  }, 0);
 
   const avgFilesPerRun = filteredSortRuns.length === 0 ? 0 : (
     filteredSortRuns.reduce((sum, run) => {
@@ -223,9 +210,8 @@ function Dashboard() {
                 <FileText size={22} />
               </div>
               <div className="stat-info">
-                <div className="stat-value">{stats.filesProcessed}</div>
-                <div className="stat-label">Files processed today</div>
-                <div className="stat-sub">{stats.filesTotal} total</div>
+                <div className="stat-value">{stats.uniqueFiles}</div>
+                <div className="stat-label">Unique files processed</div>
               </div>
             </div>
             <div className="card stat-card">
